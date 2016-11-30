@@ -6,18 +6,18 @@ using System.Collections.Generic;
 public class casterWindowPrefs : EditorWindow
 {
 
-    int posX = EditorPrefs.GetInt("V_windowOffsetX", 0);
-    int posY = EditorPrefs.GetInt("V_windowOffsetY", 0);
-    int width = EditorPrefs.GetInt("V_windowWidth", 1920);  //Display.main.renderingWidth
-    int height = EditorPrefs.GetInt("V_windowHeight", 1080);
+    int posX = 0;
+    int posY = 0;
+    int width = 1920;  //Display.main.renderingWidth
+    int height = 1080;
 
-
-    [MenuItem("Hypercube/Caster Window Prefs", false, 1)]  //1 is prio
-    public static void openCubeWindowPrefs()
+    void Awake()
     {
-        EditorWindow.GetWindow(typeof(casterWindowPrefs), false, "Caster Prefs");
+        posX = EditorPrefs.GetInt("V_windowOffsetX", posX);
+        posY = EditorPrefs.GetInt("V_windowOffsetY", posY);
+        width = EditorPrefs.GetInt("V_windowWidth", width);  //Display.main.renderingWidth
+        height = EditorPrefs.GetInt("V_windowHeight", height);
     }
-
 
 
     void OnGUI()
