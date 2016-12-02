@@ -7,7 +7,7 @@ namespace hypercube
 	{
 		public castMesh canvas;
 
-		void OnEnable()
+		public virtual void OnEnable()
 		{
 			canvas.calibrator = this;
 			canvas.updateMesh ();

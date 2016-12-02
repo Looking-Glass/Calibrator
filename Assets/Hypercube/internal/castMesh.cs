@@ -80,8 +80,8 @@ namespace hypercube
         public hypercubePreview preview = null;
 
         public Shader screenShotShader = null;
-        public Material testMaterial = null;
-        public Material testMaterial2 = null;
+     //   public Material testMaterial = null;
+     //   public Material testMaterial2 = null;
 
 #if HYPERCUBE_DEV
         public calibrator calibrator = null;
@@ -162,7 +162,7 @@ namespace hypercube
                 int w = 0;
                 int h = 0;
                 getScreenResolution(ref w, ref h);
-                takeScreenShot(w, h, savePath);
+                generateSullyTextures(w, h, savePath);
                 saveVertPositions(w,h, savePath);
             }
 
@@ -907,7 +907,7 @@ namespace hypercube
         }
 
 
-        public void takeScreenShot(int w, int h, string filePath)
+        public void generateSullyTextures(int w, int h, string filePath)
         {
             Camera c = GetComponent<Camera>();
             RenderTexture rtt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGBFloat);        
@@ -969,14 +969,6 @@ namespace hypercube
             byte b = (byte)(fracV & 0xFF);
             return new Color32(r, g, b, byte.MaxValue);
             
-        }
-
-        //this method takes a 24 bit color and maps it into a float (with precision 11 in the int side, 8 on the fraction side).
-        static float colorToFloat(Color32 col)
-        {
-            float x = (float)((int)col.r * 16 + (int)col.g / 16); //the int part
-            x += (((int)col.g & 0x0F) << 8 + ((int)col.b) / 4096); //the fraction part
-            return x;
         }
 
 
