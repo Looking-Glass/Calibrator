@@ -29,8 +29,10 @@ namespace hypercube
                 if (articulations[a] == val)
                     return a;
             }
-            return 0; 
+            return -1; 
         }
+
+        public GameObject calibrationMesh;
 
 
         public override void OnEnable()
@@ -47,9 +49,9 @@ namespace hypercube
             if (slicesY < 1)
                 slicesY = 1;
 
-            if (articulationLookup(articulationX) == 0) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
+            if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
                 articulationX = articulations[4];
-            if (articulationLookup(articulationY) == 0)
+            if (articulationLookup(articulationY) == -1)
                 articulationY = articulations[3];
 
             //configure ourselves
@@ -132,7 +134,7 @@ namespace hypercube
         static void setOptions(out uint[][] option, int maxOption)
         {
             int lookup = articulationLookup(maxOption);
-            if (lookup == 0)
+            if (lookup == -1)
                 Debug.LogError("Invalid maxOption provided when setting up the vertex calibrator, the choices must be one of the provided values.");
 
             List<uint[]> allOptions = new List<uint[]>();
@@ -177,8 +179,58 @@ namespace hypercube
             int displayLevelX = Mathf.Min(displayLevel, xOptions.Length - 1); //account for different limits between x/y
             int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
+            //begin mesh creation
+
+            List<Vector3> verts = new List<Vector3>();
+            List<Vector2> uvs = new List<Vector2>();
+            List<Color> colors = new List<Color>();
+            List<int[]> submeshes = new List<int[]>(); //the triangle list(s)
+
+            //////
+            for (int s = 0; s < vertices.GetLength(0); s++)
+            {
+                for (int y = 0; y < vertices.GetLength(2); y++)
+                {
+                    for (int x = 0; x  < vertices.GetLength(1); x++)
+                    {
+                        Vector2 centerPoint = vertices[s,x,y];
+                       // verts.Add(new Vector3(.x, vertices[s, x, y].y, 0f));
+                    }
+                }
+            }
 
 
+                            //////
+
+                            MeshRenderer r = calibrationMesh.GetComponent<MeshRenderer>();
+            if (!r)
+                r = calibrationMesh.AddComponent<MeshRenderer>();
+
+            MeshFilter mf = calibrationMesh.GetComponent<MeshFilter>();
+            if (!mf)
+                mf = calibrationMesh.AddComponent<MeshFilter>();
+
+            Mesh m = mf.sharedMesh;
+            if (!m)
+                return; //probably some in-editor state where things aren't init.
+            m.Clear();
+
+            m.SetVertices(verts);
+            m.SetUVs(0, uvs);
+
+            m.subMeshCount = 1;
+            for (int s = 0; s < slices; s++)
+            {
+                m.SetTriangles(submeshes[s], s);
+            }
+
+            //normals are necessary for the transparency shader to work (since it uses it to calculate camera facing)
+            Vector3[] normals = new Vector3[verts.Count];
+            for (int n = 0; n < verts.Count; n++)
+                normals[n] = Vector3.forward;
+
+            m.normals = normals;
+            m.colors = colors.ToArray();
         }
 
         public override Material[] getMaterials()
