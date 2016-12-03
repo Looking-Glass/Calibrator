@@ -9,7 +9,7 @@ namespace hypercube
         public string name;  //not functional, just for inspector convenience
 		public Texture infoTexture;
         public GameObject[] activeObjects;
-       
+
     }
 
     public class calibrationStager : MonoBehaviour
@@ -21,6 +21,7 @@ namespace hypercube
 		public UnityEngine.UI.Image helpImage;
         public calibrationStage[] stages;
 
+        public bool allowNextStage = true; //can be used to block progress if settings are bad
 
         
        // public GameObject infoScreen;
@@ -77,6 +78,9 @@ namespace hypercube
 
         public void nextStage()
         {
+            if (!allowNextStage) // a stage can block its own switching.
+                return;
+
             stage++;
 
             if (stage >= stages.Length)

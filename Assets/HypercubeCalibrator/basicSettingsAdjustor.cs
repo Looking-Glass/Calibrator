@@ -20,6 +20,7 @@ namespace hypercube
 
         public UnityEngine.UI.Text vertCalculation;
         public UnityEngine.UI.Text sliceInfo;
+        public UnityEngine.UI.Text sliceCount;
 
         void OnEnable()
         {
@@ -37,7 +38,7 @@ namespace hypercube
             slicesX.text = d.getValueAsInt("slicesX", 1).ToString();
             slicesY.text = d.getValueAsInt("slicesY", 10).ToString();
 
-            //add the appropriate options
+            //add the given options defined in vertexCalibrator.articulations
             System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData> options = new System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData>();
             foreach(int a in vertexCalibrator.articulations)
                 options.Add(new UnityEngine.UI.Dropdown.OptionData(a.ToString()));
@@ -51,20 +52,65 @@ namespace hypercube
         public void updateDisplayInfo()
         {
             //this will update the printouts to make sure we put in sane info
-            int vertPrediction = vertexCalibrator.articulationLookup(articulationX.value) * vertexCalibrator.articulationLookup(articulationY.value) * dataFileDict.stringToInt(slicesX.text, 0) * dataFileDict.stringToInt(slicesY.text, 0);        
-            if (vertPrediction > 62000)
-                vertCalculation.text = "<ff0000>" + vertPrediction.ToString() + " - TOO MANY VERTS!</>";
-            else if (vertPrediction > 50000)
-                vertCalculation.text = "<ffff00>" + vertPrediction.ToString() + "</>";
-            else
-                vertCalculation.text = vertPrediction.ToString();
+
+            sliceCount.text = "";
+
+            if (!validateValues())
+                return;
 
             int resXint = dataFileDict.stringToInt(resX.text, 0);
             int resYint = dataFileDict.stringToInt(resY.text, 0);
-            int slicesXint = dataFileDict.stringToInt(slicesX.text, 1);
-            int slicesYint = dataFileDict.stringToInt(slicesY.text, 1);
+            int slicesXint = dataFileDict.stringToInt(slicesX.text, 0);
+            int slicesYint = dataFileDict.stringToInt(slicesY.text, 0);
+            int xArticulation = vertexCalibrator.articulations[articulationX.value];
+            int yArticulation = vertexCalibrator.articulations[articulationY.value];
+
+            sliceCount.text = " = " + (slicesXint * slicesYint).ToString() + " slices";
+
+            int vertPrediction = xArticulation * yArticulation * slicesXint * slicesYint;        
+            if (vertPrediction > 62000)
+                vertCalculation.text = "<color=#ff0000>" + vertPrediction.ToString() + " (TOO MANY!)</color>";
+            else if (vertPrediction > 50000)
+                vertCalculation.text = "<color=#ffff00>" + vertPrediction.ToString() + "</color>";
+            else
+                vertCalculation.text = vertPrediction.ToString();
+
             sliceInfo.text = ((float)resXint/ (float)slicesXint).ToString() + " x " + ((float)resYint / (float)slicesYint).ToString();
 
+        }
+
+        bool validateValues()
+        {
+            calibrationStager s = GameObject.FindObjectOfType<calibrationStager>();
+            s.allowNextStage = false;
+
+            int resXint = dataFileDict.stringToInt(resX.text, 0);
+            int resYint = dataFileDict.stringToInt(resY.text, 0);
+            int slicesXint = dataFileDict.stringToInt(slicesX.text, 0);
+            int slicesYint = dataFileDict.stringToInt(slicesY.text, 0);
+            int xArticulation = vertexCalibrator.articulations[articulationX.value];
+            int yArticulation = vertexCalibrator.articulations[articulationY.value];
+
+            if (slicesXint < 1 || slicesYint < 1)
+            {
+                vertCalculation.text = "<color=#ff0000>Incoherent slice layout!</color>";
+                return false;
+            }
+
+            if (xArticulation < 2 || yArticulation < 2)
+            {
+                vertCalculation.text = "<color=#ff0000>Bad Articulation values!</color>";
+                return false;
+            }
+
+            if (resXint < 2 || resYint < 2)
+            {
+                vertCalculation.text = "<color=#ff0000>Bad Resolution!</color>";
+                return false;
+            }
+           
+            s.allowNextStage = true;
+            return true;
         }
 
         void OnDisable()

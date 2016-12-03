@@ -11,10 +11,11 @@ namespace hypercube
        public int articulationX;
        public int articulationY;
        public int slices;
-
-      //Vector2[,,] vertices;
+   
         uint[][] xOptions;
         uint[][] yOptions;
+
+        //Vector2[,,] vertices;
 
         public static int[] articulations = {3,5,9,17,33,65,129,257,513};
         public static int articulationLookup(int val)
@@ -27,6 +28,10 @@ namespace hypercube
             return 0; 
         }
 
+
+        public void resetVertexOffsets()
+        {
+        }
 
         public override void OnEnable()
         {
