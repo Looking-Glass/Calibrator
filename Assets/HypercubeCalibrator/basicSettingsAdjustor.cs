@@ -47,40 +47,17 @@ namespace hypercube
 
             articulationX.value = vertexCalibrator.articulationLookup(d.getValueAsInt("articulationX", vertexCalibrator.articulations[4])); //convert the number to the index in the array of possible choices
             articulationY.value = vertexCalibrator.articulationLookup(d.getValueAsInt("articulationY", vertexCalibrator.articulations[3]));
+
+            updateDisplayInfo();
         }
 
+        //this also validates the current values
         public void updateDisplayInfo()
         {
             //this will update the printouts to make sure we put in sane info
 
             sliceCount.text = "";
 
-            if (!validateValues())
-                return;
-
-            int resXint = dataFileDict.stringToInt(resX.text, 0);
-            int resYint = dataFileDict.stringToInt(resY.text, 0);
-            int slicesXint = dataFileDict.stringToInt(slicesX.text, 0);
-            int slicesYint = dataFileDict.stringToInt(slicesY.text, 0);
-            int xArticulation = vertexCalibrator.articulations[articulationX.value];
-            int yArticulation = vertexCalibrator.articulations[articulationY.value];
-
-            sliceCount.text = " = " + (slicesXint * slicesYint).ToString() + " slices";
-
-            int vertPrediction = xArticulation * yArticulation * slicesXint * slicesYint;        
-            if (vertPrediction > 62000)
-                vertCalculation.text = "<color=#ff0000>" + vertPrediction.ToString() + " (TOO MANY!)</color>";
-            else if (vertPrediction > 50000)
-                vertCalculation.text = "<color=#ffff00>" + vertPrediction.ToString() + "</color>";
-            else
-                vertCalculation.text = vertPrediction.ToString();
-
-            sliceInfo.text = ((float)resXint/ (float)slicesXint).ToString() + " x " + ((float)resYint / (float)slicesYint).ToString();
-
-        }
-
-        bool validateValues()
-        {
             calibrationStager s = GameObject.FindObjectOfType<calibrationStager>();
             s.allowNextStage = false;
 
@@ -94,24 +71,39 @@ namespace hypercube
             if (slicesXint < 1 || slicesYint < 1)
             {
                 vertCalculation.text = "<color=#ff0000>Incoherent slice layout!</color>";
-                return false;
+                return;
             }
 
             if (xArticulation < 2 || yArticulation < 2)
             {
                 vertCalculation.text = "<color=#ff0000>Bad Articulation values!</color>";
-                return false;
+                return;
             }
 
             if (resXint < 2 || resYint < 2)
             {
                 vertCalculation.text = "<color=#ff0000>Bad Resolution!</color>";
-                return false;
+                return;
             }
-           
+
+            sliceCount.text = " = " + (slicesXint * slicesYint).ToString() + " slices";
+            sliceInfo.text = ((float)resXint / (float)slicesXint).ToString() + " x " + ((float)resYint / (float)slicesYint).ToString();
+
+            int vertPrediction = xArticulation * yArticulation * slicesXint * slicesYint;
+            if (vertPrediction > 62000)
+            {
+                vertCalculation.text = "<color=#ff0000>" + vertPrediction.ToString() + " (TOO MANY!)</color>";
+                return; //don't allow next stage switch
+            }              
+            else if (vertPrediction > 50000)
+                vertCalculation.text = "<color=#ffff00>" + vertPrediction.ToString() + "</color>";
+            else
+                vertCalculation.text = vertPrediction.ToString();
+
+            
             s.allowNextStage = true;
-            return true;
         }
+
 
         void OnDisable()
         {
