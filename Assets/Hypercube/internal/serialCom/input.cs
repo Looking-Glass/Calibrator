@@ -116,7 +116,7 @@ namespace hypercube
 
             for (int i = 0; i < names.Length; i++)
             {
-                if (names[i].StartsWith("COM") || names[i].Contains("usbmodem"))
+                if (names[i].StartsWith("COM") || names[i].Contains("usbserial"))
                 {
                     frontComName = names[i];
                 }
@@ -129,6 +129,7 @@ namespace hypercube
                 backScreen = new touchScreenInputManager("Back Touch Screen", addSerialPortInput(frontComName), false);
         }
 
+
         void Update()
         {
             if (frontScreen != null && frontScreen.serial.enabled)
@@ -137,7 +138,7 @@ namespace hypercube
                 frontScreen.update(debug);
         }
 
-        static string[] getPortNames()
+        public static string[] getPortNames()
         {
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             return System.IO.Ports.SerialPort.GetPortNames();

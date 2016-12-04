@@ -4,19 +4,8 @@ using UnityEditor;
 
 namespace hypercube
 {
-    public class calibrationMenuOption : MonoBehaviour
+    public class menuOptions : MonoBehaviour
     {
-#if HYPERCUBE_DEV
-        [MenuItem("Hypercube/Save Settings", false, 51)]
-        public static void saveCubeSettings()
-        {
-            hypercube.castMesh c = GameObject.FindObjectOfType<hypercube.castMesh>();
-            if (c)
-                c.saveConfigSettings();
-            else
-                Debug.LogWarning("No castMesh was found, and therefore no saving could occur.");
-        }
-#endif
 
         [MenuItem("Hypercube/Load Settings", false, 52)]
         public static void loadHardwareCalibrationSettings()
@@ -30,7 +19,7 @@ namespace hypercube
             else
                 Debug.LogWarning("No castMesh was found, and therefore no loading occurred.");
         }
-
+			
 
         [MenuItem("Hypercube/Load Volume friendly Unity Prefs", false, 600)]
         public static void setVolumeFriendlyPrefs()

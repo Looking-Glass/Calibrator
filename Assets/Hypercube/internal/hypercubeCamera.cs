@@ -2,28 +2,40 @@
 using System.Collections;
 using System.Collections.Generic;
 
-
   
     [ExecuteInEditMode]
     public class hypercubeCamera : MonoBehaviour
     {
-         public const float version = 1.11f;
+         public const float version = 1.72f;
 
-        public enum softSliceMode
+         //a static pointer to the last activated hypercubeCameraZ
+         public static hypercubeCamera mainCam = null;  
+
+
+        public enum renderMode
         {
             HARD = 0,
-            SOFT,
-            SOFT_CUSTOM
+            PER_MATERIAL,
+            POST_PROCESS,
+            OCCLUDING
         }
-        [Tooltip("HARD = no slice blending (also no blackPoint modification)\nSOFT = autocalculate softness based on the overlap\nSOFT_CUSTOM = manage your own overlap and softness")]
-        public softSliceMode slicing;
+        [Tooltip("This option chooses the rendering method of Hypercube:\n\nHARD - No slice blending. Blending will be OFF. \n\nPER_MATERIAL - Meshes will only be soft sliced if they use Hypercube/ shaders, but all objects will draw. Use this method and use Hypercube shaders if you want to have effects show well in Volume.\n\nPOST_PROCESS - Uses the depth buffer in a post process to calculate soft slicing. This means Shaders that do not ZWrite will be treated as empty space and draw black (effects, or transparent things). However, ANY opaque shader will be soft sliced. Use this if you want soft slicing, but don't want to use Hypercube shaders. \n\nOCCLUDING - Draws the scene one time, and then uses a post process to determine what slices a pixel draws to. The result is that pixels drawn to 'front' slices occlude pixels drawn behind them. Effects and transparent shaders will most likely draw to wrong slices with this method (because they typically use ZWrite OFF). Framing whole models (like a human head or whole opaque object) tend to show well with this method.\n")]
+        public renderMode softSliceMethod;
+
         [Tooltip("The percentage of overdraw a slice will include of its neighbor slices.\n\nEXAMPLE: an overlap of 1 will include its front and back neighbor slices (not including their own overlaps)  into itself.\nAn overlap of .5 will include half of its front neighbor and half of its back neighbor slice.")]
-        public float overlap = 2f;
-        [Tooltip("Softness is calculated for you to blend only overlapping areas. It can be set manually if Slicing is set to SOFT_CUSTOM.")]
+        [Range(.001f, 5f)]
+        public float overlap = 1f;
+
+        [Tooltip("Sets how far into the slice blending will occur. Adjust to your preference, or use 'autoSoftness' to have it calculated for you based on the overlap setting.")]
         [Range(0.001f, .5f)]
         public float softness = .5f;
 
-        public enum scaleConstraintType
+        [Tooltip("Auto-calculate softness based on the overlap.")]
+        public bool autoSoftness = false;
+
+
+
+    public enum scaleConstraintType
         {
             NONE = 0,
             X_RELATIVE,
@@ -37,18 +49,33 @@ using System.Collections.Generic;
         public float forcedPerspective = 0f; //0 is no forced perspective, other values force a perspective either towards or away from the front of the Volume.
         [Tooltip("Brightness is a final modifier on the output to Volume.\nCalculated value * Brightness = output")]
         public float brightness = 1f; //  a convenience way to set the brightness of the rendered textures. The proper way is to call 'setTone()' on the canvas
-        [Tooltip("This can be used to differentiate between what is empty space, and what is 'black' in Volume.  This Color is ADDED to everything that has geometry.\n\nNOTE: Black Point can only be used if when soft slicing is being used.\nNOTE: The brighter the value here, the more color depth is effectively lost.")]
+        [Tooltip("This can be used to differentiate between what is empty space, and what is 'black' in Volume.  This Color is ADDED to everything that has geometry.\n\nNOTE: The brighter the value here, the more color depth is effectively lost.")]
         public Color blackPoint;
         public bool autoHideMouse = true;
-        public Shader softSliceShader;
+        
+
+        public hypercube.softOverlap softSlicePostProcess;
         public Camera renderCam;
         public RenderTexture[] sliceTextures;
+        public RenderTexture occlusionRTT;
         public hypercube.castMesh castMeshPrefab;
         public hypercube.castMesh localCastMesh = null;
+
+        hypercube.hypercubePreview preview = null;
        
         //store our camera values here.
         float[] nearValues;
         float[] farValues;
+
+    void OnEnable()
+        {
+            hypercubeCamera.mainCam = this;
+        }
+
+        void Awake()
+        {
+            renderCam.depthTextureMode = DepthTextureMode.Depth;
+        }
 
         void Start()
         {
@@ -68,13 +95,20 @@ using System.Collections.Generic;
                 }
             }
 
-            resetSettings();
+            if (!preview)
+                preview = GameObject.FindObjectOfType<hypercube.hypercubePreview>();
+
+	        resetSettings();
+
+			Shader.SetGlobalFloat("_hypercubeBrightnessMod", brightness); //ensure we start with correct settings
+			Shader.SetGlobalColor("_blackPoint", blackPoint);
         }
 
 
 
         void Update()
         {
+
             if (autoHideMouse)
             {
 #if !UNITY_EDITOR
@@ -113,82 +147,111 @@ using System.Collections.Generic;
                 Debug.LogError("The Hypercube has no slice textures to render to.  Please assign them or reset the prefab.");
 
 
-            if (slicing == softSliceMode.HARD)
-                softness = 0f;
-
             if (!localCastMesh)
                 localCastMesh = GameObject.FindObjectOfType<hypercube.castMesh>();
 
             if (localCastMesh)
             {
                 localCastMesh.setTone(brightness);
-                localCastMesh.updateMesh();
+                if (softSliceMethod == renderMode.OCCLUDING)
+                    localCastMesh.drawOccludedMode = true; //this calls updateMesh
+                else
+                    localCastMesh.drawOccludedMode = false; //this calls updateMesh
             }
+
+        Shader.SetGlobalFloat("_hypercubeBrightnessMod", brightness);
+        Shader.SetGlobalColor("_blackPoint", blackPoint);
 
             updateOverlap();
-        }
 
-
-        //let the slice image filter shader know how much 'softness' they should apply to the soft overlap
-        void updateOverlap()
+        if (!preview)
+            preview = GameObject.FindObjectOfType<hypercube.hypercubePreview>();
+        if (preview)
         {
-            if (overlap < 0)
-                overlap = 0;
-
-            hypercube.softOverlap o = renderCam.GetComponent<hypercube.softOverlap>();
-            if (slicing != softSliceMode.HARD)
-            {
-                if (slicing == softSliceMode.SOFT)
-                    softness = overlap / ((overlap * 2f) + 1f); //this calculates exact interpolation between the end of a slice and the end of it's overlap area
-
-                o.enabled = true;
-                o.setShaderProperties(softness, blackPoint);
-            }
+            if (softSliceMethod == renderMode.OCCLUDING)
+                preview.setOccludedMode(true);
             else
-                o.enabled = false;
+                preview.setOccludedMode(false);
         }
+    }
+
+        public void updateOverlap()
+        {
+
+        
+
+        if (softSliceMethod != renderMode.HARD)
+            {
+                if (autoSoftness)
+                    softness = overlap / ((overlap * 2f) + 1f); //this calculates exact interpolation between the end of a slice and the end of it's overlap area. Interestingly, imo it usually does not produce what the eye thinks are best results.             
+
+                softness = Mathf.Clamp(softness, 0f, .5f);
+                Shader.SetGlobalFloat("_softPercent", softness);
+                Shader.SetGlobalFloat("_overlap", overlap);
+
+                if (softSliceMethod != renderMode.PER_MATERIAL) //we use post process on both occluding and in post process SS
+                {
+                    softSlicePostProcess.enabled = true;
+                    return;
+                }
+            }
+            softSlicePostProcess.enabled = false;
+
+        }
+
 
         public void render()
         {
-            if (overlap > 0f && slicing != softSliceMode.HARD)
-                renderCam.gameObject.SetActive(true); //setting it active/inactive is only needed so that OnRenderImage() will be called on softOverlap.cs for the post process effect
+
+            if (overlap > 0f && softSliceMethod != renderMode.HARD)
+            {
+                if (softSliceMethod == renderMode.PER_MATERIAL)
+                    Shader.EnableKeyword("SOFT_SLICING");
+                else
+                    renderCam.gameObject.SetActive(true); //setting it active/inactive is only needed so that OnRenderImage() will be called on softOverlap.cs for the post process effect. It is normally hidden so that the Unity camera icon won't interfere with viewing what is inside hypercube in the editor.            
+            }
 
             float baseViewAngle = renderCam.fieldOfView;
 
-            if (localCastMesh.slices > sliceTextures.Length)
-                localCastMesh.slices = sliceTextures.Length;
+            
+            if (softSliceMethod == renderMode.OCCLUDING) //this section is only relevant to occluding render style which renders the slices as a post process
+            {                
+                renderCam.targetTexture = occlusionRTT;
 
-            for (int i = 0; i < localCastMesh.slices; i++)
-            {
-                renderCam.fieldOfView = baseViewAngle + (i * forcedPerspective); //allow forced perspective or perspective correction
+                //x: near clip, y: far clip, z: overlap, w: depth curve
+                renderCam.nearClipPlane = nearValues[0];
+                renderCam.farClipPlane = farValues[localCastMesh.slices - 1];
+                Shader.SetGlobalVector("_NFOD", new Vector4(renderCam.nearClipPlane, renderCam.farClipPlane, overlap, 1f));               
 
-                renderCam.nearClipPlane = nearValues[i];
-                renderCam.farClipPlane = farValues[i];
-                renderCam.targetTexture = sliceTextures[i];
                 renderCam.Render();
             }
+            else //normal rendering path with multiple slices
+            {
 
-            renderCam.fieldOfView = baseViewAngle;
+                if (localCastMesh.slices > sliceTextures.Length)
+                    localCastMesh.slices = sliceTextures.Length;
 
-            if (overlap > 0f && slicing != softSliceMode.HARD)
-                renderCam.gameObject.SetActive(false);
-        }
+                for (int i = 0; i < localCastMesh.slices; i++)
+                {
+                    renderCam.fieldOfView = baseViewAngle + (i * forcedPerspective); //allow forced perspective or perspective correction
 
-        //prefs input
-        public void softSliceToggle()
-        {
-            if (slicing == softSliceMode.HARD)
-                slicing = softSliceMode.SOFT;
-            else
-                slicing = softSliceMode.HARD;
-        }
-        public void overlapUp()
-        {
-            overlap += .05f;
-        }
-        public void overlapDown()
-        {
-            overlap -= .05f;
+                    renderCam.nearClipPlane = nearValues[i];
+                    renderCam.farClipPlane = farValues[i];
+                    renderCam.targetTexture = sliceTextures[i];
+                    renderCam.Render();
+                }
+
+                renderCam.fieldOfView = baseViewAngle;
+            }
+
+            if (overlap > 0f && softSliceMethod != renderMode.HARD)
+            {
+                if (softSliceMethod == renderMode.PER_MATERIAL)
+                    Shader.DisableKeyword("SOFT_SLICING");  //toggling this on/off allows the preview in the editor to continue to appear normal.            
+            }
+            renderCam.gameObject.SetActive(false);
+
+            
         }
 
 
@@ -218,4 +281,28 @@ using System.Collections.Generic;
             updateOverlap();
         }
 
-    }
+
+    //CUSTOM INSPECTOR STUFF ... this hides/shows the gui as needed
+    /*  [UnityEditor.CustomEditor(typeof(hypercubeCamera))]
+      public class MyScriptEditor : UnityEditor.Editor
+      {
+          public override void OnInspectorGUI()
+          {
+              hypercubeCamera c = target as hypercubeCamera;
+
+              c.softSliceMethod = (hypercubeCamera.renderMode)UnityEditor.EditorGUILayout.EnumPopup("softSliceMethod", c.softSliceMethod);
+              c.overlap = UnityEditor.EditorGUILayout.Slider("Overlap", c.overlap, .001f, 5f);
+
+              if (c.softSliceMethod != renderMode.HARD)
+              {
+                  c.softness = UnityEditor.EditorGUILayout.Slider("Softness", c.softness, .001f, .5f);
+                  c.autoSoftness = UnityEditor.EditorGUILayout.Toggle("Auto Softness", c.autoSoftness);
+              }
+
+  
+
+
+          }
+      }
+      */
+}

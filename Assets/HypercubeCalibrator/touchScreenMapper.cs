@@ -57,12 +57,6 @@ namespace hypercube
         void Update()
         {
 
-            if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
-            {
-                if (stage == calibrationStage.STEP_save)
-                    save();
-                return;
-            }
 
             if (Input.GetKeyDown(KeyCode.Return))
             {
@@ -188,12 +182,6 @@ namespace hypercube
 #if HYPERCUBE_INPUT
             hypercube.input.frontScreen.setTouchScreenDims(d);
 #endif
-        }
-
-        void save()
-        {
-            cam.localCastMesh.saveConfigSettings();
-            outputText.text = "SAVED!\n\nPress ESCAPE to exit.";
         }
 
 

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 public class casterWindowPrefs : EditorWindow
 {
 
+
     int posX = 0;
     int posY = 0;
     int width = 1920;  //Display.main.renderingWidth
@@ -18,6 +19,13 @@ public class casterWindowPrefs : EditorWindow
         width = EditorPrefs.GetInt("V_windowWidth", width);  //Display.main.renderingWidth
         height = EditorPrefs.GetInt("V_windowHeight", height);
     }
+
+    [MenuItem("Hypercube/Caster Window Prefs", false, 1)]  //1 is prio
+    public static void openCubeWindowPrefs()
+    {
+        EditorWindow.GetWindow(typeof(casterWindowPrefs), false, "Caster Prefs");
+    }
+
 
 
     void OnGUI()
@@ -57,7 +65,7 @@ public class casterWindowPrefs : EditorWindow
 
 
 #if UNITY_EDITOR_WIN
-		EditorGUILayout.HelpBox("TIPS:\nUnity prefers if the cube monitor is left of the main monitor (don't ask me why). \n\nIf any changes are made to the monitor setup, Unity must be off or restarted for this tool to work properly.", MessageType.Info);
+		EditorGUILayout.HelpBox("TIPS:\nUnity prefers if the Volume monitor is left of the main monitor (don't ask me why). \n\nIf any changes are made to the monitor setup, Unity must be off or restarted for this tool to work properly.", MessageType.Info);
 
 #endif
 

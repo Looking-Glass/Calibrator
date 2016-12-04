@@ -21,7 +21,7 @@ namespace hypercube
         {
 			originalScale = cam.transform.localScale;
 			cam.scaleConstraint = hypercubeCamera.scaleConstraintType.X_RELATIVE;
-			cam.slicing = hypercubeCamera.softSliceMode.SOFT;
+			cam.softSliceMethod = hypercubeCamera.renderMode.POST_PROCESS;
 			cam.overlap = 1f;
 
             dataFileDict d = cam.localCastMesh.gameObject.GetComponent<dataFileDict>();
@@ -45,8 +45,8 @@ namespace hypercube
 			
 			cam.scaleConstraint = hypercubeCamera.scaleConstraintType.NONE;
 			cam.transform.localScale = originalScale;
-			cam.slicing = hypercubeCamera.softSliceMode.HARD;
-			cam.overlap = 0f;
+            cam.softSliceMethod = hypercubeCamera.renderMode.HARD;
+            cam.overlap = 0f;
 
 			if (!cam.localCastMesh)
 				return;

@@ -36,6 +36,7 @@ namespace hypercube
 
         void Update()
         {
+
             //don't progress without the usb...
             if (stage == 0)
             {
@@ -72,6 +73,12 @@ namespace hypercube
             if (Input.GetKeyDown(KeyCode.Escape)) 
             {
                 quit();
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
+            {
+                //TODO SAVE!!!
                 return;
             }
         }

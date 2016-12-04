@@ -24,7 +24,7 @@ using System.Threading;
 public class SerialController : MonoBehaviour
 {
     [Tooltip("Port name with which the SerialPort object will be created.")]
-    public string portName = "COM4";
+    public string portName = "COM1";
 
     [Tooltip("Baud rate that the serial device is using to transmit data.")]
     public int baudRate = 115200;
@@ -139,7 +139,7 @@ public class SerialController : MonoBehaviour
             failures++;
             if (maxFailuresAllowed > 0 && failures >= maxFailuresAllowed) //shut ourselves down
                 enabled = false;
-            Debug.LogWarning("Connection attempt failed or disconnection detected on " + portName + ". Attempting reconnection");
+            Debug.LogWarning("Connection attempt to Serial failed or disconnection occured on '" + portName + "'. Attempting reconnection");
             return null;
         }
     
