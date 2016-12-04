@@ -89,7 +89,7 @@ namespace hypercube
             sliceCount.text = " = " + (slicesXint * slicesYint).ToString() + " slices";
             sliceInfo.text = ((float)resXint / (float)slicesXint).ToString() + " x " + ((float)resYint / (float)slicesYint).ToString();
 
-            int vertPrediction = xArticulation * yArticulation * slicesXint * slicesYint;
+            int vertPrediction = xArticulation * yArticulation * slicesXint * slicesYint ;
             if (vertPrediction > 62000)
             {
                 vertCalculation.text = "<color=#ff0000>" + vertPrediction.ToString() + " (TOO MANY!)</color>";

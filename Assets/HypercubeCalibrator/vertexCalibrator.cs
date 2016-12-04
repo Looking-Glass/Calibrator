@@ -180,6 +180,7 @@ namespace hypercube
             int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
             //begin mesh creation
+            //recommend to build one mesh per slice, to not run out of verts
 
             List<Vector3> verts = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
@@ -219,10 +220,6 @@ namespace hypercube
             m.SetUVs(0, uvs);
 
             m.subMeshCount = 1;
-            for (int s = 0; s < slices; s++)
-            {
-                m.SetTriangles(submeshes[s], s);
-            }
 
             //normals are necessary for the transparency shader to work (since it uses it to calculate camera facing)
             Vector3[] normals = new Vector3[verts.Count];
