@@ -53,9 +53,11 @@ namespace hypercube
 
         public GameObject dotMesh;
         public GameObject selectionMesh;
+        public float scaleSensitivity = .01f;
 
         GameObject[] dotMeshes;
 
+        Vector3 lastMousePos; //used to calculate mouse controls
 
         public override void OnEnable()
         {
@@ -150,8 +152,11 @@ namespace hypercube
 
         public void resetAllVertexOffsets()
         {
+            selectionS = selectionX = selectionY = 0; //reset selection
+
             int sliceCount = slicesX * slicesY;
             vertices = new Vector2[sliceCount, articulationX, articulationY];
+            virginVertices = new Vector2[sliceCount, articulationX, articulationY];
 
             float sliceW = 1f/ slicesX;
             float sliceH = 1f/ slicesY;
@@ -159,25 +164,25 @@ namespace hypercube
             float aH = 1f/(articulationY - 1);
             dotAspect = sliceW/sliceH;
 
+            int sliceIndex = 0;
             for (int y = 0; y < slicesY; y++)
             {
                 for (int x = 0; x < slicesX; x++)
                 {
                     float sliceX = x * sliceW;
                     float sliceY = y * sliceH;
-                    for (int ay = 0; ay <= articulationY; ay++)
+                    for (int ay = 0; ay < articulationY; ay++)
                     {
-                        for (int ax = 0; ax <= articulationX; ax++)
-                        {                       
-                            vertices[x + (y * slicesX), ax, ay ] = 
-                                new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
+                        for (int ax = 0; ax < articulationX; ax++)
+                        {
+                            sliceIndex = x + (y * slicesX);
+                            virginVertices[sliceIndex, ax, ay ] =   new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
+                            vertices[sliceIndex, ax, ay] =          new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
                         }
                     }
                 }
             }
 
-            virginVertices = new Vector2[sliceCount, articulationX, articulationY];
-            vertices.CopyTo(virginVertices, 0);
         }
 
         //reset every point of articulation in this slice only
@@ -206,11 +211,66 @@ namespace hypercube
                 updateTextures();
 
             }
-            else if (Input.GetKeyDown(KeyCode.Minus))
+            else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
                 displayLevel --;
                 updateTextures();
             }
+            else if (Input.GetKeyDown(KeyCode.W))
+            {
+                selectionY--;
+                if (selectionY < 0)
+                    selectionY = 0;
+                updateTextures();
+            }
+            else if (Input.GetKeyDown(KeyCode.S))
+            {
+                selectionY++;
+                if (selectionY >= articulationY)
+                    selectionY = articulationY - 1;
+                updateTextures();
+            }
+            else if (Input.GetKeyDown(KeyCode.A))
+            {
+                selectionX--;
+                if (selectionX < 0)
+                    selectionX = 0;
+                updateTextures();
+            }
+            else if (Input.GetKeyDown(KeyCode.D))
+            {
+                selectionX++;
+                if (selectionX >= articulationX)
+                    selectionX = articulationX - 1;
+                updateTextures();
+            }
+            else if (Input.GetKeyDown(KeyCode.R))
+            {
+                selectionS++;
+                if (selectionS >= slicesX * slicesY)
+                    selectionS = 0;
+                updateTextures();
+            }
+            else if (Input.GetKeyDown(KeyCode.F))
+            {
+                selectionS--;
+                if (selectionS < 0)
+                    selectionS = (slicesX * slicesY) - 1;
+                updateTextures();
+            }
+
+
+            if (Input.GetKey(KeyCode.Mouse1))
+            {
+                Vector3 diff = lastMousePos - Input.mousePosition;
+                if (diff != Vector3.zero)
+                {
+                    dotSize += (-diff.x - diff.y ) * Time.deltaTime * scaleSensitivity; 
+                    updateTextures();
+                }
+            }
+
+            lastMousePos = Input.mousePosition;
         }
 
 
@@ -249,6 +309,7 @@ namespace hypercube
                 allOptions.Add(newOption.ToArray());
             }
 
+            allOptions.Reverse(); //its just handier to work with from low to high.
             option = allOptions.ToArray();
         }
 
@@ -268,7 +329,7 @@ namespace hypercube
             //build one mesh per slice, to not run out of verts
             int sliceCount = slicesX * slicesY;
 
-            //first, recreate the gameObjet and mesh arrays if our slice number has changed
+            //first, recreate the gameObject and mesh arrays if our slice number has changed
             if (sliceMaterials == null || sliceTextures == null || sliceMaterials.Length != sliceCount || sliceTextures.Length != sliceCount) 
             {
                 //clean up any last run
@@ -305,18 +366,25 @@ namespace hypercube
         {
             //first make sure we have the required number of dots.
             int dotCount = xDiv * yDiv;
-            if (dotMeshes.Length != dotCount)
+            if (dotMeshes == null || dotMeshes.Length != dotCount)
             {
-                foreach(GameObject g in dotMeshes)
-                    Destroy(g);
-
+                if (dotMeshes != null) //clear it out if it exists.
+                {
+                    foreach (GameObject g in dotMeshes)
+                        Destroy(g);
+                }
+                
                 dotMeshes = new GameObject[dotCount];
                 for (int dot = 0; dot < dotCount; dot++)
                 {
                     dotMeshes[dot] = (GameObject)Instantiate(dotMesh, renderCam.transform.parent);
                     dotMeshes[dot].name = "dot " + dot;
-                    dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
                 }
+            }
+
+            for (int dot = 0; dot < dotCount; dot++)
+            {
+                dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
             }
 
             //lay out the dots
@@ -335,10 +403,11 @@ namespace hypercube
 
             //put the selection
             if (slice == selectionS)
-                selectionMesh.transform.position = new Vector3(selectionX * w, selectionY * h, cameraOffset);
+                selectionMesh.transform.localPosition = new Vector3(selectionX * w, selectionY * h, cameraOffset);
             else
-                selectionMesh.transform.position = new Vector3(0f, 0f, -10f); //hide it behind the camera
+                selectionMesh.transform.localPosition = new Vector3(0f, 0f, -10f); //hide it behind the camera
 
+            selectionMesh.transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
 
             renderCam.targetTexture = sliceTextures[slice];
             renderCam.Render();

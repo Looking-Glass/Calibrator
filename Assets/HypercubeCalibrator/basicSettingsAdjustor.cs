@@ -121,8 +121,8 @@ namespace hypercube
             d.setValue("slicesX", dataFileDict.stringToInt(slicesX.text, 1));
             d.setValue("slicesY", dataFileDict.stringToInt(slicesY.text, 10));
 
-            d.setValue("articulationX", articulationX.value);
-            d.setValue("articulationY", articulationY.value);
+            d.setValue("articulationX", vertexCalibrator.articulationLookup(articulationX.value));
+            d.setValue("articulationY", vertexCalibrator.articulationLookup(articulationY.value));
 
             canvas.slices = dataFileDict.stringToInt(slicesX.text, 1) * dataFileDict.stringToInt(slicesY.text, 1);
 
