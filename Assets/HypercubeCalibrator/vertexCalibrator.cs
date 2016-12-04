@@ -12,6 +12,13 @@ namespace hypercube
        public int articulationY;
        public int slicesX;
        public int slicesY;
+
+        public Shader sliceShader;
+        public int renderResolution = 1024;
+
+        int selectionS;
+        int selectionX;
+        int selectionY;
    
         uint[][] xOptions;
         uint[][] yOptions;
@@ -20,6 +27,13 @@ namespace hypercube
         Vector2[,,] virginVertices; //the untouched values. Instead of recalculating where on the mesh we are at each time if we need to reset some value(s), keeping them here is an easy and flexible way to do so.
 
         int displayLevel = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
+
+        public Camera renderCam;
+        public float cameraOffset;
+        Material[] sliceMaterials = null;
+        RenderTexture[] sliceTextures = null;
+
+        float dotAspect = 1f;
 
         public static int[] articulations = {3,5,9,17,33,65,129,257,513};
         public static int articulationLookup(int val)
@@ -32,7 +46,15 @@ namespace hypercube
             return -1; 
         }
 
-        public GameObject calibrationMesh;
+        public override Material[] getMaterials()
+        {
+            return sliceMaterials;
+        }
+
+        public GameObject dotMesh;
+        public GameObject selectionMesh;
+
+        GameObject[] dotMeshes;
 
 
         public override void OnEnable()
@@ -49,6 +71,8 @@ namespace hypercube
             if (slicesY < 1)
                 slicesY = 1;
 
+            int sliceCount = slicesX * slicesY;
+
             if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
                 articulationX = articulations[4];
             if (articulationLookup(articulationY) == -1)
@@ -59,20 +83,81 @@ namespace hypercube
             setOptions(out xOptions, articulationX);
             setOptions(out yOptions, articulationY);
 
-            updateMesh();
+            //try to use existing calibration
+            string vertData = d.getValue("calibration");
+            if (vertData == "")
+                resetAllVertexOffsets(); //we have no calibration data, lets go from scratch.
+            else
+            {
+                string[] floatDataStr = vertData.Split(',');
+                if (floatDataStr.Length != articulationX * articulationY * sliceCount * 2) //the 2 accounts for both x,y values
+                {
+                    resetAllVertexOffsets();
+                    Debug.LogWarning("The vertex data length did not match the desired configuration for the slices.\nResetting offsets...");
+                }                    
+                else
+                {
+                    //recover the values from the datafile
+                    float[] floatData = new float[floatDataStr.Length];
+                    for (int f = 0; f < floatDataStr.Length; f++)
+                    {
+                        floatData[f] = dataFileDict.stringToFloat(floatDataStr[f], 0f);
+                    }
+
+                    vertices = new Vector2[sliceCount, articulationX, articulationY];
+                    int c = 0;
+                    for (int s = 0; s < sliceCount; s++)
+                    {
+                        for (int y = 0; y <= articulationY; y++)
+                        {
+                            for (int x = 0; x <= articulationX; x++)
+                            {
+                                vertices[s, x, y] = new Vector2(floatData[c], floatData[c+1]);
+                                c++;
+                                c++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            updateTextures();
 
             base.OnEnable();
+        }
+
+        public float[] getCalibrationData()
+        {
+            int sliceCount = slicesX * slicesY ;
+            float[] data = new float[sliceCount * articulationX * articulationY * 2];
+            uint d = 0;
+            for (int s = 0; s < sliceCount; s++)
+            {
+                for (int y = 0; y <= articulationY; y++)
+                {
+                    for (int x = 0; x <= articulationX; x++)
+                    {
+                        data[d] = vertices[s, x, y].x;
+                        d++;
+                        data[d] = vertices[s, x, y].y;                     
+                        d++;
+                    }
+                }
+            }
+            return data;
         }
 
 
         public void resetAllVertexOffsets()
         {
-            vertices = new Vector2[slicesX * slicesY, articulationX, articulationY];
+            int sliceCount = slicesX * slicesY;
+            vertices = new Vector2[sliceCount, articulationX, articulationY];
 
             float sliceW = 1f/ slicesX;
             float sliceH = 1f/ slicesY;
             float aW = 1f/(articulationX - 1); //the -1 is because we want that last vert to end up on the edge
             float aH = 1f/(articulationY - 1);
+            dotAspect = sliceW/sliceH;
 
             for (int y = 0; y < slicesY; y++)
             {
@@ -91,7 +176,7 @@ namespace hypercube
                 }
             }
 
-            virginVertices = new Vector2[slicesX * slicesY, articulationX, articulationY];
+            virginVertices = new Vector2[sliceCount, articulationX, articulationY];
             vertices.CopyTo(virginVertices, 0);
         }
 
@@ -118,13 +203,13 @@ namespace hypercube
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
                 displayLevel ++;
-                updateMesh();
+                updateTextures();
 
             }
             else if (Input.GetKeyDown(KeyCode.Minus))
             {
                 displayLevel --;
-                updateMesh();
+                updateTextures();
             }
         }
 
@@ -167,9 +252,8 @@ namespace hypercube
             option = allOptions.ToArray();
         }
 
-        void updateMesh()
+        void updateTextures()
         {
-
             if (displayLevel < 0) //low limit
                 displayLevel = 0;
 
@@ -179,60 +263,89 @@ namespace hypercube
             int displayLevelX = Mathf.Min(displayLevel, xOptions.Length - 1); //account for different limits between x/y
             int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
+
             //begin mesh creation
-            //recommend to build one mesh per slice, to not run out of verts
+            //build one mesh per slice, to not run out of verts
+            int sliceCount = slicesX * slicesY;
 
-            List<Vector3> verts = new List<Vector3>();
-            List<Vector2> uvs = new List<Vector2>();
-            List<Color> colors = new List<Color>();
-            List<int[]> submeshes = new List<int[]>(); //the triangle list(s)
-
-            //////
-            for (int s = 0; s < vertices.GetLength(0); s++)
+            //first, recreate the gameObjet and mesh arrays if our slice number has changed
+            if (sliceMaterials == null || sliceTextures == null || sliceMaterials.Length != sliceCount || sliceTextures.Length != sliceCount) 
             {
-                for (int y = 0; y < vertices.GetLength(2); y++)
+                //clean up any last run
+                if (sliceMaterials != null || sliceTextures != null)
                 {
-                    for (int x = 0; x  < vertices.GetLength(1); x++)
+                    foreach (Material m in sliceMaterials)
                     {
-                        Vector2 centerPoint = vertices[s,x,y];
-                       // verts.Add(new Vector3(.x, vertices[s, x, y].y, 0f));
+                        Destroy(m);
                     }
+                    foreach(RenderTexture r in sliceTextures)
+                    {
+                        Destroy(r);
+                    }
+                }
+
+                sliceMaterials = new Material[sliceCount];
+                sliceTextures = new RenderTexture[sliceCount];
+                for (int s = 0; s < sliceCount; s++)
+                {
+                    sliceMaterials[s] = new Material(sliceShader);
+                    sliceTextures[s] = new RenderTexture(renderResolution, renderResolution, 24, RenderTextureFormat.ARGB32);
+                    sliceMaterials[s].SetTexture("_MainTex", sliceTextures[s]);
                 }
             }
 
 
-                            //////
-
-                            MeshRenderer r = calibrationMesh.GetComponent<MeshRenderer>();
-            if (!r)
-                r = calibrationMesh.AddComponent<MeshRenderer>();
-
-            MeshFilter mf = calibrationMesh.GetComponent<MeshFilter>();
-            if (!mf)
-                mf = calibrationMesh.AddComponent<MeshFilter>();
-
-            Mesh m = mf.sharedMesh;
-            if (!m)
-                return; //probably some in-editor state where things aren't init.
-            m.Clear();
-
-            m.SetVertices(verts);
-            m.SetUVs(0, uvs);
-
-            m.subMeshCount = 1;
-
-            //normals are necessary for the transparency shader to work (since it uses it to calculate camera facing)
-            Vector3[] normals = new Vector3[verts.Count];
-            for (int n = 0; n < verts.Count; n++)
-                normals[n] = Vector3.forward;
-
-            m.normals = normals;
-            m.colors = colors.ToArray();
+            for (int s = 0; s < sliceCount; s++)
+            {
+                renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
+            }
         }
 
-        public override Material[] getMaterials()
+        void renderSlice(int slice, int xDiv, int yDiv)
         {
-            return base.getMaterials();
+            //first make sure we have the required number of dots.
+            int dotCount = xDiv * yDiv;
+            if (dotMeshes.Length != dotCount)
+            {
+                foreach(GameObject g in dotMeshes)
+                    Destroy(g);
+
+                dotMeshes = new GameObject[dotCount];
+                for (int dot = 0; dot < dotCount; dot++)
+                {
+                    dotMeshes[dot] = (GameObject)Instantiate(dotMesh, renderCam.transform.parent);
+                    dotMeshes[dot].name = "dot " + dot;
+                    dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
+                }
+            }
+
+            //lay out the dots
+            float w = 1f / (xDiv - 1); //the -1 is because we want that last vert to end up on the edge
+            float h = 1f / (yDiv - 1);
+            int d =0;
+            for (int y = 0; y < yDiv; y++)
+            {
+                for (int x = 0; x < xDiv; x++)
+                {
+                    dotMeshes[d].transform.localPosition = new Vector3(x * w, y * h, cameraOffset);
+                    d++;
+                }
+            }
+
+
+            //put the selection
+            if (slice == selectionS)
+                selectionMesh.transform.position = new Vector3(selectionX * w, selectionY * h, cameraOffset);
+            else
+                selectionMesh.transform.position = new Vector3(0f, 0f, -10f); //hide it behind the camera
+
+
+            renderCam.targetTexture = sliceTextures[slice];
+            renderCam.Render();
+
         }
+
+
+
     }
 }
