@@ -355,11 +355,12 @@ namespace hypercube
                 }
             }
 
-
+            renderCam.gameObject.SetActive(true);
             for (int s = 0; s < sliceCount; s++)
             {
                 renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
             }
+            renderCam.gameObject.SetActive(false);
         }
 
         void renderSlice(int slice, int xDiv, int yDiv)
@@ -371,7 +372,11 @@ namespace hypercube
                 if (dotMeshes != null) //clear it out if it exists.
                 {
                     foreach (GameObject g in dotMeshes)
+                    {
+                        g.transform.localPosition = new Vector3(0f, 0f, -100f); //make sure they don't show up in the new render.
                         Destroy(g);
+                    }
+                        
                 }
                 
                 dotMeshes = new GameObject[dotCount];
@@ -381,6 +386,11 @@ namespace hypercube
                     dotMeshes[dot].name = "dot " + dot;
                 }
             }
+
+            if (dotSize < 0f)
+                dotSize = 0f;
+            if (dotSize > .5f)
+                dotSize = .5f;
 
             for (int dot = 0; dot < dotCount; dot++)
             {
@@ -411,7 +421,7 @@ namespace hypercube
 
             renderCam.targetTexture = sliceTextures[slice];
             renderCam.Render();
-
+            renderCam.targetTexture = null;
         }
 
 
