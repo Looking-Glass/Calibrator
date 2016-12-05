@@ -220,7 +220,7 @@ using System.Collections.Generic;
 
                 //x: near clip, y: far clip, z: overlap, w: depth curve
                 renderCam.nearClipPlane = nearValues[0];
-                renderCam.farClipPlane = farValues[localCastMesh.slices - 1];
+                renderCam.farClipPlane = farValues[localCastMesh.getSliceCount() - 1];
                 Shader.SetGlobalVector("_NFOD", new Vector4(renderCam.nearClipPlane, renderCam.farClipPlane, overlap, 1f));               
 
                 renderCam.Render();
@@ -228,10 +228,14 @@ using System.Collections.Generic;
             else //normal rendering path with multiple slices
             {
 
-                if (localCastMesh.slices > sliceTextures.Length)
-                    localCastMesh.slices = sliceTextures.Length;
+                int slices = localCastMesh.getSliceCount();
+                if (slices > sliceTextures.Length)
+                {
+                    Debug.LogError("Not enough slice textures to render " + slices + " slices.");
+                    return;
+                }
 
-                for (int i = 0; i < localCastMesh.slices; i++)
+                for (int i = 0; i < slices; i++)
                 {
                     renderCam.fieldOfView = baseViewAngle + (i * forcedPerspective); //allow forced perspective or perspective correction
 

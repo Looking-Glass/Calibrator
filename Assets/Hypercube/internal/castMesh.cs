@@ -23,22 +23,14 @@ namespace hypercube
         public Vector3 aspectY { get; private set; }
         public Vector3 aspectZ { get; private set; }
 
-        public bool foundConfigFile { get; private set; }
+        public bool hasValidatedConfig { get; private set; }
 
-        public int slices = 12;
-        public int getSliceCount() { return slices; } //a safe accessor, since its accessed constantly.
-
-        int xArticulation = 1; //these will be set by the calibration data
-        int yArticulation = 1;
-        float[] calibrationData = null;
+        public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
+        Vector2[,,] calibrationData = null;
 
         public bool flipX = false;  //modifier values, by the user.
         public bool flipY = false;
         public bool flipZ = false;
-
-        public bool _flipX { get; private set; } //true  values, coming from the config file.
-        public bool _flipY { get; private set; }
-        public bool _flipZ { get; private set; }
 
 
         private static bool _drawOccludedMode = false; 
@@ -60,7 +52,6 @@ namespace hypercube
         public float zPos = .01f;
         [Range(1, 20)]
 
-        public int tesselation = 8;
         public GameObject sliceMesh;
 
         [Tooltip("The materials set here will be applied to the dynamic mesh")]
@@ -78,7 +69,17 @@ namespace hypercube
         public hypercubePreview preview = null;
 
 #if HYPERCUBE_DEV
-        public calibrator calibrator = null;
+        public calibrator currentCalibrator = null;
+
+        public void setCalibration(Vector2[,,] data)
+        {
+            calibrationData = data;
+            if (data != null)
+                hasValidatedConfig = true; //assume that the data is sane.
+            else
+                hasValidatedConfig = false;
+            updateMesh();
+        }
 #endif
 
         public Material casterMaterial;
@@ -88,7 +89,7 @@ namespace hypercube
 
         void Awake()
         {
-            foundConfigFile = false;
+            hasValidatedConfig = false;
 #if !UNITY_EDITOR
             Debug.Log("Loading Hypercube Tools v" + hypercubeCamera.version + " on  Unity v" + Application.unityVersion);
 #endif
@@ -120,7 +121,7 @@ namespace hypercube
             dataFileDict d = GetComponent<dataFileDict>();
 
             //use this path as a base path to search for the drive provided with Volume.
-             foundConfigFile = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
+             hasValidatedConfig = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
             
             d.clear();
 
@@ -131,25 +132,24 @@ namespace hypercube
             if (!d.load()) //we failed to load the file!  ...use backup defaults.
             {
                 Debug.LogWarning("Could not read calibration data from Volume!\nIs Volume connected via USB? Using defaults..."); //This will never be as good as using the config stored with the hardware and the view will have distortions in Volume's display.
-                foundConfigFile = false;
+                hasValidatedConfig = false;
             }
                 
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
-            slices = d.getValueAsInt("sliceCount", slices);
-            Shader.SetGlobalInt("_sliceCount", slices); //let any shaders that need slice count, know what it is currently.
+            if (!loadCalibrationData(out calibrationData, d))
+            {
+                hasValidatedConfig = false;
+                //our calibration is bad, act as if we have none.
+            }
+            else
+                hasValidatedConfig = true;
 
-            xArticulation = d.getValueAsInt("xArticulation", 1);
-            yArticulation = d.getValueAsInt("yArticulation", 1);
-
-            calibrationData = dotCalibrator.getCalibrationDataFromBinaryString(d.getValue("calibrationData", ""), xArticulation, yArticulation, slices);
-
-            _flipX = d.getValueAsBool("flipX", _flipX);
-            _flipY = d.getValueAsBool("flipY", _flipY);
-            _flipZ = d.getValueAsBool("flipZ", _flipZ);
-
-            updateMesh();       
+            Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
+  
+            if (hasValidatedConfig)
+                updateMesh();       
   
             //setup input to take into account touchscreen hardware config
             input.init(d);
@@ -167,7 +167,61 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
 
-            return foundConfigFile;
+            return hasValidatedConfig;
+        }
+
+        public static bool loadCalibrationData (out Vector2[,,] _vertData, dataFileDict d)
+        {
+            int x,y, _articulationX, _articulationY = 0;
+            return loadCalibrationData(out x, out y, out _articulationX, out _articulationY, out _vertData, d);
+        }
+        public static bool loadCalibrationData(out int _slicesX, out int _slicesY, out int _articulationX, out int _articulationY, out Vector2[,,] _vertData, dataFileDict d)
+        {
+            _slicesX = _slicesY = _articulationX = _articulationY = 0;
+            _vertData = null;
+            
+            //try to use existing calibration
+            string vertStr = d.getValue("calibration");
+            if (vertStr == "")
+                return false; //we have no calibration data
+   
+            _slicesX = d.getValueAsInt("slicesX", 1);
+            _slicesY = d.getValueAsInt("slicesY", 10);
+            _articulationX = d.getValueAsInt("articulationX", 33);
+            _articulationY = d.getValueAsInt("articulationY", 17);
+
+            if (_slicesX < 1 || _slicesY < 1)
+                return false;
+
+            int sliceCount = _slicesX * _slicesY;
+
+            string[] floatDataStr = vertStr.Split(',');
+            if (floatDataStr.Length != _articulationX * _articulationY * sliceCount * 2) //the 2 accounts for both x,y values
+                return false;
+
+            //recover the values from the datafile
+            float[] floatData = new float[floatDataStr.Length];
+            for (int f = 0; f < floatDataStr.Length; f++)
+            {
+                floatData[f] = dataFileDict.stringToFloat(floatDataStr[f], 0f);
+            }
+
+            _vertData = new Vector2[sliceCount, _articulationX, _articulationY];
+            int c = 0;
+            for (int s = 0; s < sliceCount; s++)
+            {
+                for (int y = 0; y <= _articulationY; y++)
+                {
+                    for (int x = 0; x <= _articulationX; x++)
+                    {
+                        _vertData[s, x, y] = new Vector2(floatData[c], floatData[c + 1]);
+                        c++;
+                        c++;
+                    }
+                }
+            }
+
+            return true;
         }
 
 		//requires the physical dimensions of the projection, in Centimeters. Should not be public except for use by calibration tools or similar. 
@@ -186,16 +240,13 @@ namespace hypercube
         void OnValidate()
         {
 
-            if (slices < 1)
-                slices = 1;
-
             if (!sliceMesh)
                 return;
 
             if (preview)
             {
-                preview.sliceCount = slices;
-                preview.sliceDistance = 1f / (float)slices;
+                preview.sliceCount = getSliceCount();
+                preview.sliceDistance = 1f / (float)preview.sliceCount;
                 preview.updateMesh();
             }
 
@@ -210,25 +261,6 @@ namespace hypercube
                 resetTransform();
             }
         }
-
-
-
-        public void toggleFlipX()
-        {
-            _flipX = !_flipX;
-            updateMesh();
-        }
-        public void toggleFlipY()
-        {
-            _flipY = !_flipY;
-            updateMesh();
-        }
-        public void toggleFlipZ()
-        {
-            _flipZ = !_flipZ;
-            updateMesh();
-        }
-
 
         public float getScreenAspectRatio()
         {
@@ -248,14 +280,14 @@ namespace hypercube
 
 
             float xPixel = 1f / (float)Screen.width;
-            float yPixel = 1f / (float)Screen.height;
+           // float yPixel = 1f / (float)Screen.height;
 
-                   float outWidth = (float)Screen.width;  //used in horizontal slicer
+            float outWidth = (float)Screen.width;  //used in horizontal slicer
             if (usingCustomDimensions && customWidth > 2 && customHeight > 2)
             {
                 xPixel = 1f / customWidth;
-                yPixel = 1f / customHeight;
-                          outWidth = customWidth; //used in horizontal slicer
+                //yPixel = 1f / customHeight;
+                outWidth = customWidth; //used in horizontal slicer
             }
 
             float aspectRatio = getScreenAspectRatio();
@@ -293,11 +325,8 @@ namespace hypercube
 
         public void updateMesh()
         {
-            if (!sliceMesh)
+            if (!sliceMesh || calibrationData == null)
                 return;
-
-            if (slices < 1)
-                slices = 1;
 
 
             if (canvasMaterials.Count == 0)
@@ -306,35 +335,23 @@ namespace hypercube
                 return;
             }
 
-            if (slices < 1)
+            if (!hasValidatedConfig)
+                return;
+
+
+            if (getSliceCount() > canvasMaterials.Count)
             {
-                slices = 1;
+                Debug.LogWarning("Can't add more than " + canvasMaterials.Count + " slices, because only " + canvasMaterials.Count + " canvas materials are defined.");
                 return;
             }
 
-            if (slices > canvasMaterials.Count)
-            {
-                Debug.LogWarning("Can't add more than " + canvasMaterials.Count + " slices, because only " + canvasMaterials.Count + " canvas materials are defined.");
-                slices = canvasMaterials.Count;
-                return;
-            }
+            int slices = getSliceCount();
 
             List<Vector3> verts = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
+            List<Color> colors = new List<Color>();
             List<int[]> submeshes = new List<int[]>(); //the triangle list(s)
             Material[] faceMaterials = new Material[slices];
-
-            bool outFlipX = _flipX; //true values
-            bool outFlipY = _flipY;
-            bool outFlipZ = _flipZ;
-            //modifiers
-            if (flipX)
-                outFlipX = !outFlipX;
-            if (flipY)
-                outFlipY = !outFlipY;
-            if (flipZ)
-                outFlipZ = !outFlipZ;
-
 
             //create the mesh
             int vertCount = 0;
@@ -342,51 +359,20 @@ namespace hypercube
             for (int s = 0; s < slices; s++)
             {
 
-                Vector2 UV_ul = new Vector2(0f, 0f);
-                Vector2 UV_br = new Vector2(1f, 1f);
-
-                if (outFlipX && outFlipY)
-                {
-                    UV_ul.Set(1f, 1f);
-                    UV_br.Set(0f, 0f);
-                }
-                else if (!outFlipX && outFlipY)
-                {
-                    UV_ul.Set(0f, 1f);
-                    UV_br.Set(1f, 0f);
-                }
-                else if (outFlipX && !outFlipY)
-                {
-                    UV_ul.Set(1f, 0f);
-                    UV_br.Set(0f, 1f);
-                }
-
-                //if we are drawing occluded mode, modify the UV's so that they make sense.
-                if (_drawOccludedMode)
-                {
-                    float sliceMod = 1f / (float)slices;
-                    UV_ul.y *= sliceMod;
-                    UV_br.y *= sliceMod;
-
-                    UV_ul.y += (sliceMod * s);
-                    UV_br.y += (sliceMod * s);
-                }
-
-
                 //we generate each slice mesh out of 4 interpolated parts.
                 List<int> tris = new List<int>();
 
-                vertCount += generateSlice(vertCount, calibrationData, xArticulation, yArticulation, UV_ul, UV_br, ref verts, ref tris, ref uvs); 
+                vertCount += generateSlice(vertCount, s, ref verts, ref tris, ref uvs, ref colors); 
 
                 submeshes.Add(tris.ToArray());
 
                 //every face has a separate material/texture  
                 if (_drawOccludedMode)
                     faceMaterials[s] = occlusionMaterial; //here it just uses 1 material, but the slices have different uv's if we are in occlusion mode
-                else if (!outFlipZ)
-                    faceMaterials[s] = canvasMaterials[s];
+                else if (!flipZ)
+                    faceMaterials[s] = canvasMaterials[s]; //normal
                 else
-                    faceMaterials[s] = canvasMaterials[slices - s - 1];
+                    faceMaterials[s] = canvasMaterials[slices - s - 1]; //reverse z
             }
 
 
@@ -421,8 +407,8 @@ namespace hypercube
 
 #if HYPERCUBE_DEV
 
-            if (calibrator && calibrator.gameObject.activeSelf && calibrator.enabled)
-                r.materials = calibrator.getMaterials();
+            if (currentCalibrator && currentCalibrator.gameObject.activeSelf && currentCalibrator.enabled)
+                r.materials = currentCalibrator.getMaterials();
             else
 #endif
                 r.materials = faceMaterials; //normal path
@@ -433,30 +419,17 @@ namespace hypercube
         //this is used to generate each of 4 sections of every slice.
         //therefore 1 central column and 1 central row of verts are overlapping per slice, but that is OK.  Keeping the interpolation isolated to this function helps readability a lot
         //returns amount of verts created
-        int generateSlice(int startingVert, float[] allVertData, int _xArticulation, int _yArticulation, Vector2 topLeftUV, Vector2 bottomRightUV,  ref  List<Vector3> verts, ref List<int> triangles, ref List<Vector2> uvs)
+        int generateSlice(int startingVert, int slice, ref  List<Vector3> verts, ref List<int> triangles, ref List<Vector2> uvs, ref List<Color> colors)
         {
- /*           int vertCount = 0;
-            for (var y = 0; y <= _yArticulation; y++)
+            int vertCount = 0;
+            int xTesselation = calibrationData.GetLength(1);
+            int yTesselation = calibrationData.GetLength(2);
+            for (var y = 0; y < yTesselation; y++)
             {
-                //for every "i", or row, we are going to make a start and end point.
-                //lerp between the top left and bottom left, then lerp between the top right and bottom right, and save the vectors
-
-                float rowLerpValue = (float)y / (float)tesselation;
-
-                Vector2 newLeftEndpoint = Vector2.Lerp(topLeft, bottomLeft, rowLerpValue);
-                Vector2 newRightEndpoint = Vector2.Lerp(topRight, bottomRight, rowLerpValue);
-
-                for (var x = 0; x <= _xArticulation; x++)
+                for (var x = 0; x < xTesselation; x++)
                 {
-                    //Now that we have our start and end coordinates for the row, iteratively lerp between them to get the "columns"
-                    float columnLerpValue = (float)x / (float)tesselation;
-
-                    //now get the final lerped vector
-                    Vector2 lerpedVector = Vector2.Lerp(newLeftEndpoint, newRightEndpoint, columnLerpValue);
-             
-
                     //add it
-                    verts.Add(new Vector3(lerpedVector.x, lerpedVector.y, 0f));
+                    verts.Add(new Vector3(calibrationData[slice, x, y].x, calibrationData[slice, x, y].y, 0f)); //note these values are 0-1
                     vertCount++;
                 }
             }
@@ -464,38 +437,43 @@ namespace hypercube
             //triangles
             //we only want < tesselation because the very last verts in both directions don't need triangles drawn for them.
             int currentTriangle = 0;
-            for (var y = 0; y < tesselation; y++)
+          //  int xspot = xTesselation - 1;
+         //   int yspot = yTesselation - 1;
+            for (var y = 0; y < yTesselation; y++)
             {
-                for (int j = 0; j < tesselation; j++)
+                for (int x = 0; x < xTesselation; x++)
                 {
-                    currentTriangle = startingVert + j;
-                    triangles.Add(currentTriangle + y * (tesselation + 1)); //width in verts
-                    triangles.Add((currentTriangle + 1) + y * (tesselation + 1));
-                    triangles.Add(currentTriangle + (y + 1) * (tesselation + 1));
+                    currentTriangle = startingVert + x;
+                    triangles.Add(currentTriangle + (y * xTesselation)); //top left
+                    triangles.Add((currentTriangle + 1) + (y * xTesselation));  //top right
+                    triangles.Add(currentTriangle + ((y + 1) * xTesselation)); //bottom left
 
-                    triangles.Add((currentTriangle + 1) + y * (tesselation + 1));
-                    triangles.Add((currentTriangle + 1) + (y + 1) * (tesselation + 1));
-                    triangles.Add(currentTriangle + (y + 1) * (tesselation + 1));
+                    triangles.Add((currentTriangle + 1) + (y * xTesselation)); //top right
+                    triangles.Add((currentTriangle + 1) + ((y + 1) * xTesselation)); //bottom right
+                    triangles.Add(currentTriangle + ((y + 1) * xTesselation)); //bottom left
                 }
             }
 
             //uvs
-            for (var y = 0; y <= tesselation; y++)
+            float UVW = 1 / (xTesselation - 1); //make sure the UV gets to the end
+            float UVH = 1 / (yTesselation - 1);
+            for (var y = 0; y < yTesselation; y++)
             {
-                for (var j = 0; j <= tesselation; j++)
+                for (var x = 0; x < xTesselation; x++)
                 {
-                    Vector2 targetUV = new Vector2((float)j / (float)tesselation, (float)y / (float)tesselation);  //0-1 UV target
+                    Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
 
+                    //TODO handle flipping! preferably in the materials
                     //add lerped uv
-                    uvs.Add(new Vector2(
-                        Mathf.Lerp(topLeftUV.x, bottomRightUV.x, targetUV.x),
-                        Mathf.Lerp(topLeftUV.y, bottomRightUV.y, targetUV.y)
-                        ));
+                   // float xLerp = Mathf.Lerp(topLeftUV.x, bottomRightUV.x, targetUV.x);
+                   // float yLerp = Mathf.Lerp(topLeftUV.y, bottomRightUV.y, targetUV.y);
+                    uvs.Add(targetUV);
+
+                    colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
                 }
             }
 
-            return vertCount;*/
-            return 1;
+            return vertCount;
         }
 
 
@@ -512,7 +490,7 @@ namespace hypercube
             rTex.ReadPixels(new Rect(0f, 0f, w, h), 0, 0, false);
             rTex.Apply();
 
-
+            int slices = getSliceCount();
             Color clr = new Color();
             Color32[] xColors = new Color32[w * h];
             Color32[] yColors = new Color32[w * h];

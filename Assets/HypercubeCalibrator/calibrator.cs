@@ -9,7 +9,7 @@ namespace hypercube
 
 		public virtual void OnEnable()
 		{
-			canvas.calibrator = this;
+			canvas.currentCalibrator = this;
 			canvas.updateMesh ();
 		}
 

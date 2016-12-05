@@ -40,7 +40,7 @@ namespace hypercube
             //don't progress without the usb...
             if (stage == 0)
             {
-                if (canvas.foundConfigFile)
+                if (canvas.hasValidatedConfig)
                     nextStage();
                 else
                 {

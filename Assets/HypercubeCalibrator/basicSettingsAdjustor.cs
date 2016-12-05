@@ -121,11 +121,10 @@ namespace hypercube
             d.setValue("slicesX", dataFileDict.stringToInt(slicesX.text, 1));
             d.setValue("slicesY", dataFileDict.stringToInt(slicesY.text, 10));
 
-            d.setValue("articulationX", vertexCalibrator.articulationLookup(articulationX.value));
-            d.setValue("articulationY", vertexCalibrator.articulationLookup(articulationY.value));
+            d.setValue("articulationX", vertexCalibrator.articulations[articulationX.value]);
+            d.setValue("articulationY", vertexCalibrator.articulations[articulationY.value]);
 
-            canvas.slices = dataFileDict.stringToInt(slicesX.text, 1) * dataFileDict.stringToInt(slicesY.text, 1);
-
+           
             //set the res, if it is different.
             int resXpref =  d.getValueAsInt("volumeResX", 1920);
             int resYpref = d.getValueAsInt("volumeResY", 1080);
@@ -135,6 +134,8 @@ namespace hypercube
     #endif
             if (Screen.width != resXpref || Screen.height != resYpref)
                 Screen.SetResolution(resXpref, resYpref, forceFullScreen);
+
+            canvas.loadSettings();
         }
     }
 }

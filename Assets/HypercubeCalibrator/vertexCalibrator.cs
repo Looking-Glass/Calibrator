@@ -8,10 +8,10 @@ namespace hypercube
     {
        public float dotSize;
 
-       public int articulationX;
-       public int articulationY;
-       public int slicesX;
-       public int slicesY;
+       int articulationX;
+       int articulationY;
+       int slicesX;
+       int slicesY;
 
         public Shader sliceShader;
         public int renderResolution = 1024;
@@ -45,6 +45,15 @@ namespace hypercube
             }
             return -1; 
         }
+        //static int getVertsFromDivLevel(int d)
+        //{
+        //    if (d == 0)
+        //        return 0;
+        //    if (d == 1)
+        //        return 2;
+
+        //    return (getVertsFromDivLevel(d - 1) * 2) - 1;
+        //}
 
         public override Material[] getMaterials()
         {
@@ -63,94 +72,129 @@ namespace hypercube
         {
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
-            slicesX = d.getValueAsInt("slicesX", 0);
-            slicesY = d.getValueAsInt("slicesY", 0);
-            articulationX = d.getValueAsInt("articulationX", 0);
-            articulationY = d.getValueAsInt("articulationY", 0);
 
-            if (slicesX < 1)
-                slicesX = 1;
-            if (slicesY < 1)
-                slicesY = 1;
 
-            int sliceCount = slicesX * slicesY;
+            if (castMesh.loadCalibrationData(out slicesX, out slicesY, out articulationX, out articulationY, out vertices, d))
+            {
+                resetOriginalVertexOffsets(); //reset just 'virgin' data
+            }
+            else
+            {       
 
-            if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
-                articulationX = articulations[4];
-            if (articulationLookup(articulationY) == -1)
-                articulationY = articulations[3];
+                //if something is wrong or incoherent, reset everything to some default.
+                //this should almost never happen.
+                if (slicesX < 1)
+                    slicesX = 1;
+                if (slicesY < 1)
+                    slicesY = 1;
+
+                if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
+                    articulationX = articulations[4];
+                if (articulationLookup(articulationY) == -1)
+                    articulationY = articulations[3];
+
+                resetOriginalVertexOffsets(true); //change both vertices and virginVertices
+
+            }
 
             //configure ourselves
             //the following lines will tell us what elements to highlight when we toggle between levels of detail
             setOptions(out xOptions, articulationX);
             setOptions(out yOptions, articulationY);
 
-            //try to use existing calibration
-            string vertData = d.getValue("calibration");
-            if (vertData == "")
-                resetAllVertexOffsets(); //we have no calibration data, lets go from scratch.
-            else
-            {
-                string[] floatDataStr = vertData.Split(',');
-                if (floatDataStr.Length != articulationX * articulationY * sliceCount * 2) //the 2 accounts for both x,y values
-                {
-                    resetAllVertexOffsets();
-                    Debug.LogWarning("The vertex data length did not match the desired configuration for the slices.\nResetting offsets...");
-                }                    
-                else
-                {
-                    //recover the values from the datafile
-                    float[] floatData = new float[floatDataStr.Length];
-                    for (int f = 0; f < floatDataStr.Length; f++)
-                    {
-                        floatData[f] = dataFileDict.stringToFloat(floatDataStr[f], 0f);
-                    }
-
-                    vertices = new Vector2[sliceCount, articulationX, articulationY];
-                    int c = 0;
-                    for (int s = 0; s < sliceCount; s++)
-                    {
-                        for (int y = 0; y <= articulationY; y++)
-                        {
-                            for (int x = 0; x <= articulationX; x++)
-                            {
-                                vertices[s, x, y] = new Vector2(floatData[c], floatData[c+1]);
-                                c++;
-                                c++;
-                            }
-                        }
-                    }
-                }
-            }
-
             updateTextures();
+            canvas.setCalibration(vertices);
 
             base.OnEnable();
         }
 
-        public float[] getCalibrationData()
-        {
-            int sliceCount = slicesX * slicesY ;
-            float[] data = new float[sliceCount * articulationX * articulationY * 2];
-            uint d = 0;
-            for (int s = 0; s < sliceCount; s++)
-            {
-                for (int y = 0; y <= articulationY; y++)
-                {
-                    for (int x = 0; x <= articulationX; x++)
-                    {
-                        data[d] = vertices[s, x, y].x;
-                        d++;
-                        data[d] = vertices[s, x, y].y;                     
-                        d++;
-                    }
-                }
-            }
-            return data;
-        }
+        //public float[] getCalibrationData()
+        //{
+        //    int sliceCount = slicesX * slicesY ;
+        //    float[] data = new float[sliceCount * articulationX * articulationY * 2];
+        //    uint d = 0;
+        //    for (int s = 0; s < sliceCount; s++)
+        //    {
+        //        for (int y = 0; y <= articulationY; y++)
+        //        {
+        //            for (int x = 0; x <= articulationX; x++)
+        //            {
+        //                data[d] = vertices[s, x, y].x;
+        //                d++;
+        //                data[d] = vertices[s, x, y].y;                     
+        //                d++;
+        //            }
+        //        }
+        //    }
+        //    return data;
+        //}
 
 
-        public void resetAllVertexOffsets()
+
+
+        //public void skew()
+        //{
+        //    //skews
+        //    topM.x += skews[s].x;
+        //    lowM.x -= skews[s].x;
+        //    midL.y += skews[s].y;
+        //    midR.y -= skews[s].y;
+
+        //    //interpolate the alternate axis on the skew so that edges will always be straight ( fix elbows caused when we skew)
+        //    topM.y = Mathf.Lerp(topL.y, topR.y, Mathf.InverseLerp(topL.x, topR.x, topM.x));
+        //    lowM.y = Mathf.Lerp(lowL.y, lowR.y, Mathf.InverseLerp(lowL.x, lowR.x, lowM.x));
+        //    midL.x = Mathf.Lerp(topL.x, lowL.x, Mathf.InverseLerp(topL.y, lowL.y, midL.y));
+        //    midR.x = Mathf.Lerp(topR.x, lowR.x, Mathf.InverseLerp(topR.y, lowR.y, midR.y));
+        //}
+
+        //public void bow()
+        //{
+        //    //add bow distortion compensation
+        //    //bow is stored as top,bottom,left,right  = x y z w
+        //    float bowX = 0f;
+        //    float bowY = 0f;
+        //    float xBowAmount = 0f;
+        //    float yBowAmount = 0f;
+        //    float averageBowX = (bow.z + bow.w) / 2f;
+        //    float averageBowY = (bow.x + bow.y) / 2f;
+        //    if (o == shardOrientation.UL)//phase: 1 1
+        //    {
+        //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); //left
+        //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
+        //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+        //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+        //    }
+        //    else if (o == shardOrientation.UR)//phase: 1 0
+        //    {
+        //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue); //right
+        //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
+        //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+        //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+        //    }
+        //    else if (o == shardOrientation.LL)//phase: 0 1
+        //    {
+        //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); // *rowLerpValue; //left
+        //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
+        //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+        //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+        //    }
+        //    else if (o == shardOrientation.LR)//phase: 0 0
+        //    {
+        //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue);//right
+        //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
+        //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+        //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+        //    }
+
+        //    bowX -= xBowAmount * .5f; //the lines above pivot the bowing on the centerpoint of the slice. The two following lines change the pivot to the corner points of articulation so that the center is what moves.
+        //    bowY -= yBowAmount * .5f;
+        //    lerpedVector.x += bowX;
+        //    lerpedVector.y += bowY;
+        //    //end bow distortion compensation
+        //}
+
+
+        public void resetOriginalVertexOffsets(bool alsoNonOriginal = false)
         {
             selectionS = selectionX = selectionY = 0; //reset selection
 
@@ -177,13 +221,15 @@ namespace hypercube
                         {
                             sliceIndex = x + (y * slicesX);
                             virginVertices[sliceIndex, ax, ay ] =   new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
-                            vertices[sliceIndex, ax, ay] =          new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
+                            if (alsoNonOriginal)
+                                vertices[sliceIndex, ax, ay] =      new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
                         }
                     }
                 }
             }
-
         }
+
+
 
         //reset every point of articulation in this slice only
         public void resetVertexOffsets(int slice)
