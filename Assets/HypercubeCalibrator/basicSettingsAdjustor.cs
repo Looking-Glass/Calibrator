@@ -134,8 +134,6 @@ namespace hypercube
     #endif
             if (Screen.width != resXpref || Screen.height != resYpref)
                 Screen.SetResolution(resXpref, resYpref, forceFullScreen);
-
-            canvas.loadSettings();
         }
     }
 }

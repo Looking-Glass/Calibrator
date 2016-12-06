@@ -79,7 +79,12 @@ namespace hypercube
                 resetOriginalVertexOffsets(); //reset just 'virgin' data
             }
             else
-            {       
+            {
+                //these are set by the basic settings, so we can read them out here.
+                slicesX = d.getValueAsInt("slicesX", 1);
+                slicesY = d.getValueAsInt("slicesY", 10);
+                articulationX = d.getValueAsInt("articulationX", 33);
+                articulationY = d.getValueAsInt("articulationY", 17);
 
                 //if something is wrong or incoherent, reset everything to some default.
                 //this should almost never happen.
@@ -206,6 +211,8 @@ namespace hypercube
             float sliceH = 1f/ slicesY;
             float aW = 1f/(articulationX - 1); //the -1 is because we want that last vert to end up on the edge
             float aH = 1f/(articulationY - 1);
+            aW *= sliceW; //normalize the articulation w/h to the 'world' space
+            aH *= sliceH;
             dotAspect = sliceW/sliceH;
 
             int sliceIndex = 0;
@@ -440,7 +447,7 @@ namespace hypercube
 
             for (int dot = 0; dot < dotCount; dot++)
             {
-                dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
+                dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize, dotSize); //y * dotOFfset
             }
 
             //lay out the dots
@@ -451,7 +458,7 @@ namespace hypercube
             {
                 for (int x = 0; x < xDiv; x++)
                 {
-                    dotMeshes[d].transform.localPosition = new Vector3(x * w, y * h, cameraOffset);
+                    dotMeshes[d].transform.localPosition = new Vector3(x * w * 2f, y * h *2f, cameraOffset); //the 2f sizes the content to a camera of size 1.
                     d++;
                 }
             }
@@ -459,13 +466,14 @@ namespace hypercube
 
             //put the selection
             if (slice == selectionS)
-                selectionMesh.transform.localPosition = new Vector3(selectionX * w, selectionY * h, cameraOffset);
+                selectionMesh.transform.localPosition = new Vector3(selectionX * w * 2f, selectionY * h * 2f, cameraOffset);
             else
                 selectionMesh.transform.localPosition = new Vector3(0f, 0f, -10f); //hide it behind the camera
 
-            selectionMesh.transform.localScale = new Vector3(dotSize, dotSize * dotAspect, dotSize);
+            selectionMesh.transform.localScale = new Vector3(dotSize, dotSize, dotSize); //y * dotOFfset
 
             renderCam.targetTexture = sliceTextures[slice];
+            renderCam.rect = new Rect(0f, 0f, 1f, 1f);
             renderCam.Render();
             renderCam.targetTexture = null;
         }

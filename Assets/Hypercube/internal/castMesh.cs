@@ -180,15 +180,15 @@ namespace hypercube
             _slicesX = _slicesY = _articulationX = _articulationY = 0;
             _vertData = null;
             
-            //try to use existing calibration
-            string vertStr = d.getValue("calibration");
-            if (vertStr == "")
-                return false; //we have no calibration data
-   
             _slicesX = d.getValueAsInt("slicesX", 1);
             _slicesY = d.getValueAsInt("slicesY", 10);
             _articulationX = d.getValueAsInt("articulationX", 33);
             _articulationY = d.getValueAsInt("articulationY", 17);
+
+            //try to use existing calibration
+            string vertStr = d.getValue("calibration");
+            if (vertStr == "")
+                return false; //we have no calibration data
 
             if (_slicesX < 1 || _slicesY < 1)
                 return false;
@@ -291,7 +291,7 @@ namespace hypercube
             }
 
             float aspectRatio = getScreenAspectRatio();
-            sliceMesh.transform.localPosition = new Vector3(-(xPixel * aspectRatio * outWidth), 1f, zPos); //this puts the pivot of the mesh at the upper left 
+            sliceMesh.transform.localPosition = new Vector3(-(xPixel * aspectRatio * outWidth), -1f, zPos); //this puts the pivot of the mesh at the upper left 
             sliceMesh.transform.localScale = new Vector3( aspectRatio * 2f, 2f, 1f); //the camera size is 1f, therefore the view is 2f big.  Here we scale the mesh to match the camera's view 1:1
 
         }
@@ -439,24 +439,24 @@ namespace hypercube
             int currentTriangle = 0;
           //  int xspot = xTesselation - 1;
          //   int yspot = yTesselation - 1;
-            for (var y = 0; y < yTesselation; y++)
+            for (var y = 0; y < yTesselation -1; y++)
             {
-                for (int x = 0; x < xTesselation; x++)
+                for (int x = 0; x < xTesselation -1; x++)
                 {
                     currentTriangle = startingVert + x;
-                    triangles.Add(currentTriangle + (y * xTesselation)); //top left
+                    triangles.Add(currentTriangle + ((y + 1) * xTesselation)); //bottom left
                     triangles.Add((currentTriangle + 1) + (y * xTesselation));  //top right
-                    triangles.Add(currentTriangle + ((y + 1) * xTesselation)); //bottom left
+                    triangles.Add(currentTriangle + (y * xTesselation)); //top left
 
-                    triangles.Add((currentTriangle + 1) + (y * xTesselation)); //top right
-                    triangles.Add((currentTriangle + 1) + ((y + 1) * xTesselation)); //bottom right
                     triangles.Add(currentTriangle + ((y + 1) * xTesselation)); //bottom left
+                    triangles.Add((currentTriangle + 1) + ((y + 1) * xTesselation)); //bottom right
+                    triangles.Add((currentTriangle + 1) + (y * xTesselation)); //top right
                 }
             }
 
             //uvs
-            float UVW = 1 / (xTesselation - 1); //make sure the UV gets to the end
-            float UVH = 1 / (yTesselation - 1);
+            float UVW = 1f / (float)(xTesselation ); //-1 makes sure the UV gets to the end
+            float UVH = 1f / (float)(yTesselation );
             for (var y = 0; y < yTesselation; y++)
             {
                 for (var x = 0; x < xTesselation; x++)
