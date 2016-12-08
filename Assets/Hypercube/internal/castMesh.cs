@@ -456,7 +456,7 @@ namespace hypercube
 
             //uvs
             float UVW = 1f / (float)(xTesselation -1); //-1 makes sure the UV gets to the end
-            float UVH = 1f / (float)(yTesselation -1);
+            float UVH = 1f / (float)(yTesselation -1 );
             for (var y = 0; y < yTesselation; y++)
             {
                 for (var x = 0; x < xTesselation; x++)

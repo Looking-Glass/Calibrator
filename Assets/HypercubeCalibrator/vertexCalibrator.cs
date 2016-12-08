@@ -6,8 +6,7 @@ namespace hypercube
 {
 	public class vertexCalibrator : calibrator
     {
-       public int dotSize;
-        public Color32 dotColor;
+       public float dotSize;
 
        int articulationX;
        int articulationY;
@@ -29,9 +28,10 @@ namespace hypercube
 
         int displayLevel = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 
+        public Camera renderCam;
+        public float cameraOffset;
         Material[] sliceMaterials = null;
-        Texture2D[] sliceTextures = null;
-        Color32[] fillColor = null;
+        RenderTexture[] sliceTextures = null;
 
         float dotAspect = 1f;
 
@@ -60,6 +60,8 @@ namespace hypercube
             return sliceMaterials;
         }
 
+        public GameObject dotMesh;
+        public GameObject selectionMesh;
         public float scaleSensitivity = .01f;
 
         GameObject[] dotMeshes;
@@ -68,11 +70,6 @@ namespace hypercube
 
         public override void OnEnable()
         {
-            fillColor = new Color32[renderResolution * renderResolution];
-            for (int c = 0; c < renderResolution * renderResolution; c++)
-            {
-                fillColor[c] = new Color32(0,0,0,255);
-            }
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
 
@@ -263,13 +260,13 @@ namespace hypercube
         {
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
-                displayLevel++;
+                displayLevel ++;
                 updateTextures();
 
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-                displayLevel--;
+                displayLevel --;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.W))
@@ -315,25 +312,13 @@ namespace hypercube
                 updateTextures();
             }
 
-            else if (Input.GetKeyDown(KeyCode.Comma))
-            {
-                dotSize ++;
-                updateTextures();
-            }
-            else if (Input.GetKeyDown(KeyCode.Period))
-            {
-                dotSize--;
-                updateTextures();
-            }
-
 
             if (Input.GetKey(KeyCode.Mouse1))
             {
                 Vector3 diff = lastMousePos - Input.mousePosition;
                 if (diff != Vector3.zero)
                 {
-                    float amount = (-diff.x - diff.y ) * Time.deltaTime * scaleSensitivity; 
-                    dotSize += Mathf.RoundToInt(amount);
+                    dotSize += (-diff.x - diff.y ) * Time.deltaTime * scaleSensitivity; 
                     updateTextures();
                 }
             }
@@ -407,78 +392,92 @@ namespace hypercube
                     {
                         Destroy(m);
                     }
-                    foreach(Texture2D r in sliceTextures)
+                    foreach(RenderTexture r in sliceTextures)
                     {
                         Destroy(r);
                     }
                 }
 
                 sliceMaterials = new Material[sliceCount];
-                sliceTextures = new Texture2D[sliceCount];
+                sliceTextures = new RenderTexture[sliceCount];
                 for (int s = 0; s < sliceCount; s++)
                 {
                     sliceMaterials[s] = new Material(sliceShader);
-                    sliceTextures[s] = new Texture2D(renderResolution, renderResolution, TextureFormat.ARGB32, true);
+                    sliceTextures[s] = new RenderTexture(renderResolution, renderResolution, 24, RenderTextureFormat.ARGB32);
                     sliceMaterials[s].SetTexture("_MainTex", sliceTextures[s]);
                 }
             }
 
+            renderCam.gameObject.SetActive(true);
             for (int s = 0; s < sliceCount; s++)
             {
                 renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
             }
+            renderCam.gameObject.SetActive(false);
         }
 
         void renderSlice(int slice, int xDiv, int yDiv)
         {
+            //first make sure we have the required number of dots.
+            int dotCount = xDiv * yDiv;
+            if (dotMeshes == null || dotMeshes.Length != dotCount)
+            {
+                if (dotMeshes != null) //clear it out if it exists.
+                {
+                    foreach (GameObject g in dotMeshes)
+                    {
+                        g.transform.localPosition = new Vector3(0f, 0f, -100f); //make sure they don't show up in the new render.
+                        Destroy(g);
+                    }
+                        
+                }
+                
+                dotMeshes = new GameObject[dotCount];
+                for (int dot = 0; dot < dotCount; dot++)
+                {
+                    dotMeshes[dot] = (GameObject)Instantiate(dotMesh, renderCam.transform.parent);
+                    dotMeshes[dot].name = "dot " + dot;
+                }
+            }
 
-            sliceTextures[slice].SetPixels32(fillColor); //fill with black
+            if (dotSize < 0f)
+                dotSize = 0f;
+            if (dotSize > .5f)
+                dotSize = .5f;
 
-            if (dotSize < 0)
-                dotSize = 0;
-            if (dotSize > 64)
-                dotSize = 64;
+            for (int dot = 0; dot < dotCount; dot++)
+            {
+                dotMeshes[dot].transform.localScale = new Vector3(dotSize, dotSize, dotSize); //y * dotOFfset
+            }
 
             //lay out the dots
             float w = 1f / (xDiv - 1); //the -1 is because we want that last vert to end up on the edge
             float h = 1f / (yDiv - 1);
+            int d =0;
             for (int y = 0; y < yDiv; y++)
             {
                 for (int x = 0; x < xDiv; x++)
                 {
-                    blitDiamond(sliceTextures[slice], Mathf.RoundToInt((float)x * w * renderResolution)  , Mathf.RoundToInt((float)y * h * renderResolution), dotSize, dotSize, dotColor);
+                    dotMeshes[d].transform.localPosition = new Vector3(x * w * 2f, y * h *2f, cameraOffset); //the 2f sizes the content to a camera of size 1.
+                    d++;
                 }
             }
 
 
             //put the selection
             if (slice == selectionS)
-            {
-                blitDiamond(sliceTextures[slice], Mathf.RoundToInt((float)selectionX * w * renderResolution), Mathf.RoundToInt((float)selectionY * h * renderResolution), Mathf.RoundToInt((float)dotSize * .3f), Mathf.RoundToInt((float)dotSize * .3f), new Color32(255,255,255,255));
-            }
+                selectionMesh.transform.localPosition = new Vector3(selectionX * w * 2f, selectionY * h * 2f, cameraOffset);
+            else
+                selectionMesh.transform.localPosition = new Vector3(0f, 0f, -10f); //hide it behind the camera
 
-            sliceTextures[slice].Apply();
- 
+            selectionMesh.transform.localScale = new Vector3(dotSize, dotSize, dotSize); //y * dotOFfset
+
+            renderCam.targetTexture = sliceTextures[slice];
+            renderCam.rect = new Rect(0f, 0f, 1f, 1f);
+            renderCam.Render();
+            renderCam.targetTexture = null;
         }
 
-
-        
-        static void blitDiamond(Texture2D tex, int x, int y, int width, int height, Color32 color)
-        {
-            if (width == 0 || height == 0)
-                return;
-
-            for (int ypos = y - height; ypos < y + height; ypos++)
-            { 
-                int w = Mathf.RoundToInt(Mathf.Lerp(1f, width, Mathf.Abs(ypos - height)));
-                for (int xpos = x - w; xpos < x + w ; xpos++)
-                {
-                    tex.SetPixel(xpos, ypos, color);                 
-                }
-            }
-
-
-        }
 
 
     }
