@@ -260,13 +260,18 @@ namespace hypercube
         {
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
+               
                 displayLevel ++;
-                updateTextures();
 
+                updateTextures();
+                    
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-                displayLevel --;
+                if (displayLevel <= 0) 
+                    return;
+                
+                displayLevel--;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.W))
@@ -274,6 +279,7 @@ namespace hypercube
                 selectionY--;
                 if (selectionY < 0)
                     selectionY = 0;
+
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.S))
@@ -366,7 +372,7 @@ namespace hypercube
             option = allOptions.ToArray();
         }
 
-        void updateTextures()
+        void validateDisplayLevel()
         {
             if (displayLevel < 0) //low limit
                 displayLevel = 0;
@@ -374,9 +380,17 @@ namespace hypercube
             int maxArticulation = Mathf.Max(xOptions.Length, yOptions.Length) - 1;
             displayLevel = Mathf.Min(displayLevel, maxArticulation); //high limit
 
+        }
+
+        void updateTextures()
+        {
+            validateDisplayLevel();
+
             int displayLevelX = Mathf.Min(displayLevel, xOptions.Length - 1); //account for different limits between x/y
             int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
+            selectionX = Mathf.Min(selectionX, xOptions.Length - 1);
+            selectionY = Mathf.Min(selectionY, yOptions.Length - 1);
 
             //begin mesh creation
             //build one mesh per slice, to not run out of verts
@@ -442,8 +456,8 @@ namespace hypercube
 
             if (dotSize < 0f)
                 dotSize = 0f;
-            if (dotSize > .5f)
-                dotSize = .5f;
+            if (dotSize > .75f)
+                dotSize = .75f;
 
             for (int dot = 0; dot < dotCount; dot++)
             {
