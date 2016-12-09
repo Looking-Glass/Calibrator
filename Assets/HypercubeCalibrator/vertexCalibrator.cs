@@ -6,12 +6,15 @@ namespace hypercube
 {
 	public class vertexCalibrator : calibrator
     {
-       public float dotSize;
+		public float sensitivity = .1f;
+        public float dotSize;
+		public bool flipX = false;
+		public bool flipY = false;
 
-       int articulationX;
-       int articulationY;
-       int slicesX;
-       int slicesY;
+	    int articulationX;
+	    int articulationY;
+	    int slicesX;
+	    int slicesY;
 
         public Shader sliceShader;
         public int renderResolution = 1024;
@@ -26,14 +29,15 @@ namespace hypercube
         Vector2[,,] vertices;
         Vector2[,,] virginVertices; //the untouched values. Instead of recalculating where on the mesh we are at each time if we need to reset some value(s), keeping them here is an easy and flexible way to do so.
 
-        int displayLevel = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
+        int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
+		int displayLevelY = 0;
 
         public Camera renderCam;
         public float cameraOffset;
         Material[] sliceMaterials = null;
         RenderTexture[] sliceTextures = null;
 
-        float dotAspect = 1f;
+//        float dotAspect = 1f;
 
         public static int[] articulations = {3,5,9,17,33,65,129,257,513};
         public static int articulationLookup(int val)
@@ -213,7 +217,7 @@ namespace hypercube
             float aH = 1f/(articulationY - 1);
             aW *= sliceW; //normalize the articulation w/h to the 'world' space
             aH *= sliceH;
-            dotAspect = sliceW/sliceH;
+//            dotAspect = sliceW/sliceH;
 
             int sliceIndex = 0;
             for (int y = 0; y < slicesY; y++)
@@ -260,37 +264,34 @@ namespace hypercube
         {
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
-				int oldLevel = displayLevel;
-                displayLevel ++;
+				int oldX = displayLevelX;
+				int oldY = displayLevelY;
+				displayLevelX++;
+				displayLevelY++;
 
 				validateDisplayLevel ();
-				if (displayLevel != oldLevel) 
-				{
-					if (displayLevel < xOptions.Length)
-						selectionX *= 2;
-					if (displayLevel < yOptions.Length)
-						selectionY *= 2;
-					updateTextures ();
-				}
+				if (displayLevelX != oldX) 
+					selectionX *= 2;
+				if (displayLevelY != oldY)
+					selectionY *= 2;
+				
+				updateTextures ();
                     
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-                if (displayLevel <= 0) 
-                    return;
-                
-				int oldLevel = displayLevel;
-				displayLevel--;
+				int oldX = displayLevelX;
+				int oldY = displayLevelY;
+				displayLevelX--;
+				displayLevelY--;
 
 				validateDisplayLevel ();
-				if (displayLevel != oldLevel) 
-				{
-					if (oldLevel < xOptions.Length ) //this if keeps us from dividing if the selection is 'waiting' at the end of it's articulation limit
-						selectionX /= 2;
-					if (oldLevel < yOptions.Length)
-						selectionY /= 2;
-					updateTextures ();
-				}
+				if (displayLevelX != oldX) 
+					selectionX /= 2;
+				if (displayLevelY != oldY)
+					selectionY /= 2;
+
+				updateTextures ();
             }
             else if (Input.GetKeyDown(KeyCode.W))
             {
@@ -347,6 +348,19 @@ namespace hypercube
                 }
             }
 
+			//move a vert with mouse
+			if (Input.GetKey(KeyCode.Mouse0))
+			{
+				Vector3 diff = lastMousePos - Input.mousePosition;
+				if (diff != Vector3.zero)
+				{
+					diff *= Time.deltaTime * sensitivity;
+					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].x += diff.x;
+					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].y += diff.y;
+					canvas.setCalibration (vertices);
+				}
+			}
+
             lastMousePos = Input.mousePosition;
         }
 
@@ -392,21 +406,19 @@ namespace hypercube
 
         void validateDisplayLevel()
         {
-            if (displayLevel < 0) //low limit
-                displayLevel = 0;
+			if (displayLevelX < 0) //low limit
+				displayLevelX = 0;
+			if (displayLevelY < 0) //low limit
+				displayLevelY = 0;
 
-            int maxArticulation = Mathf.Max(xOptions.Length, yOptions.Length) - 1;
-			if (displayLevel > maxArticulation)
-				displayLevel = maxArticulation;//high limit
+			displayLevelX = Mathf.Min(displayLevelX, xOptions.Length - 1); //account for different limits between x/y
+			displayLevelY = Mathf.Min(displayLevelY, yOptions.Length - 1);
 
         }
 
         void updateTextures()
         {
             validateDisplayLevel();
-
-            int displayLevelX = Mathf.Min(displayLevel, xOptions.Length - 1); //account for different limits between x/y
-            int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
 			selectionX = Mathf.Min(selectionX, xOptions[displayLevelX].Length - 1);
 			selectionY = Mathf.Min(selectionY, yOptions[displayLevelY].Length - 1);

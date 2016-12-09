@@ -297,7 +297,7 @@ namespace hypercube
         }
 
         //this is part of the code that tries to map the player to a particular screen (this appears to be very flaky in Unity)
-        public void setToDisplay(int displayNum)
+   /*     public void setToDisplay(int displayNum)
         {
             if (displayNum == 0 || displayNum >= Display.displays.Length)
                 return;
@@ -305,7 +305,7 @@ namespace hypercube
             GetComponent<Camera>().targetDisplay = displayNum;
             Display.displays[displayNum].Activate();
         }
-
+*/
 
 
         public void setTone(float value)
