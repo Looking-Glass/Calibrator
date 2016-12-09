@@ -368,8 +368,7 @@ namespace hypercube
 						diff.y = -diff.y;
 					if (flipX)
 						diff.x = -diff.x;
-					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].x += diff.x;
-					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].y += diff.y;
+					moveVert (diff.x, diff.y);
 					canvas.setCalibration (vertices);
 				}
 			}
@@ -377,6 +376,72 @@ namespace hypercube
             lastMousePos = Input.mousePosition;
         }
 
+		//lerps the appropriate unselected vertices
+		void moveVert(float x, float y)
+		{
+			int middleX = (int)xOptions[displayLevelX][selectionX];
+			int middleY = (int)yOptions[displayLevelY][selectionY];
+	
+			int left = int.MaxValue;
+			if (selectionX != 0)
+				left = (int)xOptions [displayLevelX] [selectionX - 1];
+			int right = -1; 
+			if (selectionX < xOptions [displayLevelX] [xOptions [displayLevelX].Length - 1])
+				right = (int)xOptions [displayLevelX] [selectionX + 1];
+
+			int top = int.MaxValue;
+			if (selectionY != 0)
+				top = (int)yOptions [displayLevelY] [selectionY - 1];
+			int bottom = -1; 
+			if (selectionY < yOptions [displayLevelY] [yOptions [displayLevelY].Length - 1])
+				bottom = (int)yOptions [displayLevelY] [selectionY + 1];
+
+			//now we know all verts that will be affected by this move.
+			//imagine now 4 quadrants, with the 'middle' vert in the center
+			//we will lerp all sister verts in those quadrants accordingly.
+
+			for (int vy = top; vy <= middleY; vy++)  //top verts
+			{	
+				for (int vx = left; vx <= middleX; vx++)  //left verts
+				{			
+					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(left,middleX,vx)); 
+					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(top,middleY,vy)); 
+				}
+			}
+
+			for (int vy = top; vy < middleY; vy++)  //top verts
+			{	
+				for (int vx = right; vx > middleX; vx--) //right verts
+				{
+					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(right,middleX,vx)); 
+					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(top,middleY,vy));
+				}
+			}
+				
+			for (int vy = bottom; vy > middleY; vy--)  //bottom verts
+			{	
+				for (int vx = left; vx < middleX; vx++)  //left verts
+				{			
+					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(left,middleX,vx)); 
+					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(bottom,middleY,vy)); 
+				}
+			}
+
+			for (int vy = bottom; vy >= middleY; vy--)  //bottom verts
+			{	
+				for (int vx = right; vx >= middleX; vx--) //right verts
+				{
+					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(right,middleX,vx)); 
+					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(bottom,middleY,vy));
+				}
+			}
+
+			//compensate for double transforming
+			vertices [selectionS, middleX, middleY].x -= x * 2; 
+			vertices [selectionS, middleX, middleY].y -= y * 2;
+			
+
+		}
 
 
         //this method returns an array containing what elements should be highlighted given each possible detail level
