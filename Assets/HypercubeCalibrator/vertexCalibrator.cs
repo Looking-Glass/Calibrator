@@ -260,10 +260,18 @@ namespace hypercube
         {
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
-               
+				int oldLevel = displayLevel;
                 displayLevel ++;
 
-                updateTextures();
+				validateDisplayLevel ();
+				if (displayLevel != oldLevel) 
+				{
+					if (displayLevel < xOptions.Length)
+						selectionX *= 2;
+					if (displayLevel < yOptions.Length)
+						selectionY *= 2;
+					updateTextures ();
+				}
                     
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
@@ -271,8 +279,18 @@ namespace hypercube
                 if (displayLevel <= 0) 
                     return;
                 
-                displayLevel--;
-                updateTextures();
+				int oldLevel = displayLevel;
+				displayLevel--;
+
+				validateDisplayLevel ();
+				if (displayLevel != oldLevel) 
+				{
+					if (oldLevel < xOptions.Length ) //this if keeps us from dividing if the selection is 'waiting' at the end of it's articulation limit
+						selectionX /= 2;
+					if (oldLevel < yOptions.Length)
+						selectionY /= 2;
+					updateTextures ();
+				}
             }
             else if (Input.GetKeyDown(KeyCode.W))
             {
@@ -378,7 +396,8 @@ namespace hypercube
                 displayLevel = 0;
 
             int maxArticulation = Mathf.Max(xOptions.Length, yOptions.Length) - 1;
-            displayLevel = Mathf.Min(displayLevel, maxArticulation); //high limit
+			if (displayLevel > maxArticulation)
+				displayLevel = maxArticulation;//high limit
 
         }
 
@@ -389,8 +408,8 @@ namespace hypercube
             int displayLevelX = Mathf.Min(displayLevel, xOptions.Length - 1); //account for different limits between x/y
             int displayLevelY = Mathf.Min(displayLevel, yOptions.Length - 1);
 
-            selectionX = Mathf.Min(selectionX, xOptions.Length - 1);
-            selectionY = Mathf.Min(selectionY, yOptions.Length - 1);
+			selectionX = Mathf.Min(selectionX, xOptions[displayLevelX].Length - 1);
+			selectionY = Mathf.Min(selectionY, yOptions[displayLevelY].Length - 1);
 
             //begin mesh creation
             //build one mesh per slice, to not run out of verts
