@@ -262,7 +262,17 @@ namespace hypercube
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
+			if (Input.GetKeyDown (KeyCode.Alpha1))
+				sensitivity = .00002f;
+			else if (Input.GetKeyDown (KeyCode.Alpha2))
+				sensitivity = .0002f;
+			else if (Input.GetKeyDown (KeyCode.Alpha3))
+				sensitivity = .002f;
+			else if (Input.GetKeyDown (KeyCode.Alpha4))
+				sensitivity = .015f;
+			else if (Input.GetKeyDown (KeyCode.Alpha5))
+				sensitivity = .15f;
+            else if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
 				int oldX = displayLevelX;
 				int oldY = displayLevelY;
@@ -275,8 +285,7 @@ namespace hypercube
 				if (displayLevelY != oldY)
 					selectionY *= 2;
 				
-				updateTextures ();
-                    
+				updateTextures ();                 
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
@@ -355,6 +364,10 @@ namespace hypercube
 				if (diff != Vector3.zero)
 				{
 					diff *= Time.deltaTime * sensitivity;
+					if (flipY)
+						diff.y = -diff.y;
+					if (flipX)
+						diff.x = -diff.x;
 					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].x += diff.x;
 					vertices [selectionS, xOptions [displayLevelX][selectionX], yOptions [displayLevelY][selectionY]].y += diff.y;
 					canvas.setCalibration (vertices);
