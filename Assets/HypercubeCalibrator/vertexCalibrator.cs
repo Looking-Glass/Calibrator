@@ -267,7 +267,7 @@ namespace hypercube
 			else if (Input.GetKeyDown (KeyCode.Alpha2))
 				sensitivity = .0002f;
 			else if (Input.GetKeyDown (KeyCode.Alpha3))
-				sensitivity = .002f;
+				sensitivity = .007f;
 			else if (Input.GetKeyDown (KeyCode.Alpha4))
 				sensitivity = .015f;
 			else if (Input.GetKeyDown (KeyCode.Alpha5))
@@ -381,65 +381,93 @@ namespace hypercube
 		{
 			int middleX = (int)xOptions[displayLevelX][selectionX];
 			int middleY = (int)yOptions[displayLevelY][selectionY];
+
+			//translate the middle vert 100% (and then don't change it later)
+			vertices [selectionS, middleX, middleY].x += x; 
+			vertices [selectionS, middleX, middleY].y += y;
 	
-			int left = int.MaxValue;
+			int left = middleX;
 			if (selectionX != 0)
 				left = (int)xOptions [displayLevelX] [selectionX - 1];
-			int right = -1; 
-			if (selectionX < xOptions [displayLevelX] [xOptions [displayLevelX].Length - 1])
+			int right = middleX; 
+			if (selectionX < xOptions [displayLevelX].Length - 1)
 				right = (int)xOptions [displayLevelX] [selectionX + 1];
 
-			int top = int.MaxValue;
+			int top = middleY;
 			if (selectionY != 0)
 				top = (int)yOptions [displayLevelY] [selectionY - 1];
-			int bottom = -1; 
-			if (selectionY < yOptions [displayLevelY] [yOptions [displayLevelY].Length - 1])
+			int bottom = middleY; 
+			if (selectionY < yOptions [displayLevelY].Length - 1)
 				bottom = (int)yOptions [displayLevelY] [selectionY + 1];
 
 			//now we know all verts that will be affected by this move.
 			//imagine now 4 quadrants, with the 'middle' vert in the center
 			//we will lerp all sister verts in those quadrants accordingly.
 
-			for (int vy = top; vy <= middleY; vy++)  //top verts
-			{	
-				for (int vx = left; vx <= middleX; vx++)  //left verts
-				{			
-					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(left,middleX,vx)); 
-					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(top,middleY,vy)); 
+			float lerpVal = 0f;
+			for (int vy = top; vy <= bottom; vy++) 
+			{  
+				for (int vx = left; vx <= right; vx++) 
+				{  
+                    if (vx < middleX) //left
+                    { 
+                        if (vy < middleY)//top left
+                        { 
+                            lerpVal = Mathf.InverseLerp(left, middleX, vx) * Mathf.InverseLerp(top, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal); 
+                        }
+                        else if (vy > middleY)//bottom left
+                        { 
+                            lerpVal = Mathf.InverseLerp(left, middleX, vx) * Mathf.InverseLerp(bottom, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal); 
+                        }
+                        else if (vy == middleY)//middle left
+                        { 
+                            lerpVal = Mathf.InverseLerp(left, middleX, vx);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal); 
+                        }
+                    }
+                    else if (vx > middleX)//right
+                    { 
+                        if (vy < middleY) //top right
+                        {  
+                            lerpVal = Mathf.InverseLerp(right, middleX, vx) * Mathf.InverseLerp(top, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal);
+                        }
+                        else if (vy > middleY)//bottom right 
+                        { 
+                            lerpVal = Mathf.InverseLerp(right, middleX, vx) * Mathf.InverseLerp(bottom, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal);
+                        }
+                        else if (vy == middleY) //middle right
+                        { 
+                            lerpVal = Mathf.InverseLerp(right, middleX, vx);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal); 
+                        }
+                    }
+                    else if (vx == middleX) 
+                    { 
+                        if (vy < middleY) //middle top
+                        {  
+                            lerpVal = Mathf.InverseLerp(top, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal);
+                        }
+                        else if (vy > middleY) //middle bottom
+                        {
+                            lerpVal = Mathf.InverseLerp(bottom, middleY, vy);
+                            vertices[selectionS, vx, vy].x += Mathf.Lerp(0, x, lerpVal); 
+                            vertices[selectionS, vx, vy].y += Mathf.Lerp(0, y, lerpVal);
+                        }
+                    }
 				}
-			}
-
-			for (int vy = top; vy < middleY; vy++)  //top verts
-			{	
-				for (int vx = right; vx > middleX; vx--) //right verts
-				{
-					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(right,middleX,vx)); 
-					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(top,middleY,vy));
-				}
-			}
-				
-			for (int vy = bottom; vy > middleY; vy--)  //bottom verts
-			{	
-				for (int vx = left; vx < middleX; vx++)  //left verts
-				{			
-					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(left,middleX,vx)); 
-					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(bottom,middleY,vy)); 
-				}
-			}
-
-			for (int vy = bottom; vy >= middleY; vy--)  //bottom verts
-			{	
-				for (int vx = right; vx >= middleX; vx--) //right verts
-				{
-					vertices [selectionS, vx, vy].x += Mathf.Lerp(0,x,Mathf.InverseLerp(right,middleX,vx)); 
-					vertices [selectionS, vx, vy].y += Mathf.Lerp(0,y,Mathf.InverseLerp(bottom,middleY,vy));
-				}
-			}
-
-			//compensate for double transforming
-			vertices [selectionS, middleX, middleY].x -= x * 2; 
-			vertices [selectionS, middleX, middleY].y -= y * 2;
-			
+			}				
 
 		}
 
