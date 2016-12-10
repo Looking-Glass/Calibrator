@@ -35,7 +35,7 @@ namespace hypercube
     //Un-needed data has been abstracted away for maximum compatibility among all types of Volume hardware.
     public class touch
     {
-        public readonly bool frontScreen;
+        public readonly touchScreenOrientation orientation;
         public System.UInt16 id { get; private set; }
 
         public enum activationState
@@ -56,9 +56,9 @@ namespace hypercube
         private float _distX; public float distX { get { if (activeCheck()) return _distX; return 0f; } } //the physical distance that the touch traveled in Centimeters
         private float _distY; public float distY { get { if (activeCheck()) return _distY; return 0f; } } //the physical distance that the touch traveled in Centimeters
 
-        public touch(bool _frontScreen)
+        public touch(touchScreenOrientation _orientation)
         {
-            frontScreen = _frontScreen;
+            orientation = _orientation;
             _posX = _posY = physicalPos.x = physicalPos.y = _diffX = _diffY = _distX = _distY = 0;
             touchScreenX = touchScreenY = 0;
             state = activationState.DESTROYED;
@@ -72,10 +72,15 @@ namespace hypercube
             if (!activeCheck())
                 return Vector3.zero;
 
-            if (frontScreen)
+            if (orientation == touchScreenOrientation.FRONT_TOUCHSCREEN)
                 return new Vector3(_posX - .5f, _posY - .5f, -.5f);
-            else
+            else if (orientation == touchScreenOrientation.BACK_TOUCHSCREEN)
                 return new Vector3((1f - _posX) + .5f, _posY - .5f, .5f);
+            else
+            {
+                Debug.LogError("not implemented!!  implement this!!"); //TODO perhaps screens mounted elsewhere
+                return Vector3.zero;
+            }
         }
 
         //how much time since touchDown

@@ -5,6 +5,18 @@ using System.Collections.Generic;
 namespace hypercube
 {
 
+    public enum touchScreenOrientation
+    {
+        //if a device has multiple touch screens, this is the way to distinguish between them, and give appropriate world cords
+        FRONT_TOUCHSCREEN = 0,
+        BACK_TOUCHSCREEN,
+        //below this not implemented!
+        LEFT_TOUCHSCREEN, 
+        RIGHT_TOUCHSCREEN,
+        TOP_TOUCHSCREEN,
+        BOTTOM_TOUCHSCREEN
+    }
+
 public class touchScreenInputManager  : streamedInputManager
 {
     //current touches, updated every frame
@@ -31,23 +43,28 @@ public class touchScreenInputManager  : streamedInputManager
     public Vector3 getAverageTouchWorldPos(hypercubeCamera c) { return c.transform.TransformPoint(getAverageTouchLocalPos()); }
     public Vector3 getAverageTouchLocalPos()
     {
-        if (isFront)
-            return new Vector3(averagePos.x + .5f, averagePos.y + .5f, -.5f);
-        else
-            return new Vector3((1f - averagePos.x) + .5f, averagePos.y + .5f, .5f);
+            if (screenOrientation == touchScreenOrientation.FRONT_TOUCHSCREEN)
+                return new Vector3(averagePos.x + .5f, averagePos.y + .5f, -.5f); //front touch screen
+            else if (screenOrientation == touchScreenOrientation.BACK_TOUCHSCREEN)
+                return new Vector3((1f - averagePos.x) + .5f, averagePos.y + .5f, .5f);  //back touch screen
+            else
+            {
+                Debug.LogError("implement this!!!"); //TODO
+                return Vector3.zero; //TODO
+            }
     }
 
   public readonly string deviceName;
 
-    //is this the front touch screen?
-    public readonly bool isFront;
+    //if there are multiple touch screens on the device, this is a way to distinguish.
+    public readonly touchScreenOrientation screenOrientation;
 
-    //we don't know the architecture of software that will use this code. So I chose a pool instead of a factory pattern here to avoid affecting garbage collection in any way 
+    //we don't know what kind of software architecture will use this code. So I chose a pool instead of a factory pattern here to avoid affecting garbage collection in any way 
     //at the expense of a some kb of memory (touchPoolSize * sizeof(touch)).  The problem with using a pool, is that a pointer to a touch might be held, meanwhile it gets recycled by touchScreenInputManager 
     //to represent a new touch.  To avoid this, I implemented the 'destroyed' state on touches, and when any access occurs on it while 'destroyed', the touch throws an error.  
     //The other part of trying to keep touches difficult to misuse is to make the poolSize large enough so that some time will pass before recycling, 
     //giving any straggling pointers to touches a chance to throw those errors and let the dev know that their design needs change.
-    //so in short: DON'T HOLD POINTERS TO THE TOUCHES FOR MORE THAN THE UPDATE
+    //so in short: DON'T HOLD POINTERS TO THE TOUCHES FOR MORE THAN THE CURRENT UPDATE
     const int touchPoolSize = 128; 
     touch[] touchPool = new touch[touchPoolSize];
     int touchPoolItr = 1; //index 0 is forever an inactive touch.
@@ -78,7 +95,9 @@ public class touchScreenInputManager  : streamedInputManager
     touchInterface mainTouchA = null; //instead of dynamically searching for touches with each update of data, we try to reuse the same ones across frames so that pinch and twist are less jittery
     touchInterface mainTouchB = null;
 
-    public touchScreenInputManager(string _deviceName, SerialController _serial, bool _isFrontTouchScreen) : base(_serial, new byte[]{255,255}, 1024)
+    bool hasInit = false;
+
+    public touchScreenInputManager(string _deviceName, SerialController _serial, touchScreenOrientation _orientation) : base(_serial, new byte[]{255,255}, 1024)
     {
         firmwareVersion = -9999f;
         touches = new touch[0];
@@ -86,13 +105,13 @@ public class touchScreenInputManager  : streamedInputManager
         pinch = 1f;
         twist = 0f;
         deviceName = _deviceName;
-        isFront = _isFrontTouchScreen;
+        screenOrientation = _orientation;
 
         _serial.readDataAsString = true; //start with data
 
         for (int i = 0; i < touchPool.Length; i++ )
         {
-            touchPool[i] = new touch(isFront);
+            touchPool[i] = new touch(screenOrientation);
         }
         for (int i = 0; i < interfaces.Length; i++)
         {
@@ -142,25 +161,25 @@ public class touchScreenInputManager  : streamedInputManager
 
     public override void update(bool debug)
     {
-        
+
         string data = serial.ReadSerialMessage();
         while (data != null)
         {
-
             if (debug)
                 Debug.Log(deviceName +": "+ data);
 
             if (serial.readDataAsString)
             {
-                if (data.StartsWith("firmwareVersion:"))
+                if (data.StartsWith("firmwareVersion::"))
                 {
-                    string[] toks = data.Split(':');
+                    string[] toks = data.Split("::".ToCharArray());
                     firmwareVersion = dataFileDict.stringToFloat(toks[1], firmwareVersion);
                 }
 
-                if (data == "init:done" || data.Contains("init:done"))
+                if (data == "init::done" || data.Contains("init::done"))
                 {
                     serial.readDataAsString = false; //start capturing data
+                    hasInit= true;
                     Debug.Log(deviceName + " is ready and initialized.");
                 }
 
@@ -174,10 +193,19 @@ public class touchScreenInputManager  : streamedInputManager
         }
 
         postProcessData();
-    }
+
+#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+        //this will tell the chip to give us an init, even if it isn't mechanically resetting (just in case, for example on osx which does not mechanically reset the chip on connection)
+        if (!hasInit && serial.isConnected) //will run the first time we have connection.
+        {
+            serial.SendSerialMessage("reping"); 
+            hasInit = true;
+        }
+#endif
+        }
 
 
-    protected override void processData(byte[] dataChunk)
+        protected override void processData(byte[] dataChunk)
     {
         /*  the expected data here is ..
          * 1 byte = total touches
@@ -399,7 +427,7 @@ public class touchScreenInputManager  : streamedInputManager
     }
 #endif
 
-    static float angleBetweenPoints(Vector2 v1, Vector2 v2)
+            static float angleBetweenPoints(Vector2 v1, Vector2 v2)
     {      
         return Mathf.Atan2(v1.x - v2.x, v1.y - v2.y) * Mathf.Rad2Deg;
     }

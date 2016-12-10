@@ -1,6 +1,8 @@
 ﻿#if HYPERCUBE_INPUT
 /**
  * Author: Daniel Wilches
+ * 
+ * Modified for Hypercube by Dez @ lookingglassfactory.com
  */
 
 using UnityEngine;
@@ -52,6 +54,12 @@ public class SerialController : MonoBehaviour
         }
     }
 
+    public bool isConnected
+    {
+        get;
+        private set;
+    }
+
     int failures = 0;
 
     // Constants used to mark the start and end of a connection. There is no
@@ -71,6 +79,7 @@ public class SerialController : MonoBehaviour
     void Awake()
     {
         this.enabled = false;
+        isConnected = false;
     }
 
 
@@ -132,10 +141,12 @@ public class SerialController : MonoBehaviour
         {
             Debug.Log("Connection established to " + portName);
             failures = 0;
+            isConnected = true;
             return null; 
         }
         else if (ReferenceEquals(data, SerialController.SERIAL_DEVICE_DISCONNECTED))
         {
+            isConnected = false;
             failures++;
             if (maxFailuresAllowed > 0 && failures >= maxFailuresAllowed) //shut ourselves down
                 enabled = false;

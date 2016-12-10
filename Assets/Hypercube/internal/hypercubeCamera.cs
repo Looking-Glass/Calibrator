@@ -159,28 +159,25 @@ using System.Collections.Generic;
                     localCastMesh.drawOccludedMode = false; //this calls updateMesh
             }
 
-        Shader.SetGlobalFloat("_hypercubeBrightnessMod", brightness);
-        Shader.SetGlobalColor("_blackPoint", blackPoint);
+            Shader.SetGlobalFloat("_hypercubeBrightnessMod", brightness);
+            Shader.SetGlobalColor("_blackPoint", blackPoint);
 
             updateOverlap();
 
-        if (!preview)
-            preview = GameObject.FindObjectOfType<hypercube.hypercubePreview>();
-        if (preview)
-        {
-            if (softSliceMethod == renderMode.OCCLUDING)
-                preview.setOccludedMode(true);
-            else
-                preview.setOccludedMode(false);
+            if (!preview)
+                preview = GameObject.FindObjectOfType<hypercube.hypercubePreview>();
+            if (preview)
+            {
+                if (softSliceMethod == renderMode.OCCLUDING)
+                    preview.setOccludedMode(true);
+                else
+                    preview.setOccludedMode(false);
+            }
         }
-    }
 
         public void updateOverlap()
         {
-
-        
-
-        if (softSliceMethod != renderMode.HARD)
+            if (softSliceMethod != renderMode.HARD)
             {
                 if (autoSoftness)
                     softness = overlap / ((overlap * 2f) + 1f); //this calculates exact interpolation between the end of a slice and the end of it's overlap area. Interestingly, imo it usually does not produce what the eye thinks are best results.             
@@ -196,7 +193,6 @@ using System.Collections.Generic;
                 }
             }
             softSlicePostProcess.enabled = false;
-
         }
 
 
@@ -253,15 +249,13 @@ using System.Collections.Generic;
                 if (softSliceMethod == renderMode.PER_MATERIAL)
                     Shader.DisableKeyword("SOFT_SLICING");  //toggling this on/off allows the preview in the editor to continue to appear normal.            
             }
-            renderCam.gameObject.SetActive(false);
-
-            
+            renderCam.gameObject.SetActive(false);          
         }
 
 
         //NOTE that if a parent of the cube is scaled, and the cube is arbitrarily rotated inside of it, it will return wrong lossy scale.
         // see: http://docs.unity3d.com/ScriptReference/Transform-lossyScale.html
-        //TODO change this to use a proper matrix to handle local scale in a heirarchy
+        //TODO change this to use a proper matrix to handle local scale in a hierarchy
         public void resetSettings()
         {
             if (!localCastMesh)

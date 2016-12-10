@@ -5,8 +5,6 @@ using System.Collections.Generic;
 
 namespace hypercube
 {
-
-
     public class input : MonoBehaviour
     {
         //singleton pattern
@@ -28,7 +26,7 @@ namespace hypercube
             setupSerialComs();
         }
       
-        public int baudRate = 115200;
+        public int baudRate = 57600;
         public int reconnectionDelay = 500;
         public int maxUnreadMessage = 5;
         public int maxAllowedFailure = 3;
@@ -46,6 +44,11 @@ namespace hypercube
                 eventTargets.Add(t);
             else
                 eventTargets.Remove(t);
+        }
+
+        public static string calibrationData //if the hardware contains any calibration, it will be stored here.
+        {
+            get; private set;
         }
 
         //use this instead of Start(),  that way we know we have our hardware settings info ready before we begin receiving data
@@ -71,12 +74,6 @@ namespace hypercube
         }
 
 #if HYPERCUBE_INPUT
-
-        private bool _useFrontScreen = true;
-        public bool useFrontScreen { get { return _useFrontScreen; } set { if (frontScreen != null) frontScreen.serial.enabled = value; _useFrontScreen = value; } }
-        private bool _useBackScreen = false;
-        public bool useBackScreen { get { return _useBackScreen; } set { if (backScreen != null) backScreen.serial.enabled = value; _useBackScreen = value; } }
-
 
         public static void _processTouchScreenEvent(touch t)
         {
@@ -106,6 +103,7 @@ namespace hypercube
         void setupSerialComs()
         {
             string frontComName = "";
+            string backComName = "";
             string[] names = getPortNames();
 
             if (names.Length == 0)
@@ -122,11 +120,13 @@ namespace hypercube
                 }
             }
 
-            if (frontScreen == null && useFrontScreen)
-                frontScreen = new touchScreenInputManager("Front Touch Screen", addSerialPortInput(frontComName), true);
+            //TODO find back screen serial port name
 
-            if (backScreen == null && useBackScreen)
-                backScreen = new touchScreenInputManager("Back Touch Screen", addSerialPortInput(frontComName), false);
+            if (frontScreen == null && frontComName != "" )
+                frontScreen = new touchScreenInputManager("Front Touch Screen", addSerialPortInput(frontComName), touchScreenOrientation.FRONT_TOUCHSCREEN);
+
+            if (backScreen == null && backComName != "")
+                backScreen = new touchScreenInputManager("Back Touch Screen", addSerialPortInput(frontComName), touchScreenOrientation.BACK_TOUCHSCREEN);
         }
 
 
@@ -135,7 +135,7 @@ namespace hypercube
             if (frontScreen != null && frontScreen.serial.enabled)
                 frontScreen.update(debug);
             if (backScreen != null && backScreen.serial.enabled)
-                frontScreen.update(debug);
+                backScreen.update(debug);
         }
 
         public static string[] getPortNames()
