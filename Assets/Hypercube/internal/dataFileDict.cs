@@ -164,13 +164,12 @@ public class dataFileDict : MonoBehaviour {
     }
 
 
-
     /// <summary>
     /// load values from a file on the disk  
     /// </summary>
     /// <param name="populate">If true, adds  keys found in the data file that don't already exist in the keyPair list. If false, ignores unknown keys in the data file.</param>
     /// <returns>true on success, false on failure</returns>
-    public virtual bool load(bool populate = true) 
+    public virtual bool load(bool populate = true)
     {
         if (fileName == "")
         {
@@ -181,47 +180,9 @@ public class dataFileDict : MonoBehaviour {
         if (System.IO.File.Exists(fileName))
         {
             try
-            {                 
-                // Read the file and display it line by line.
-                System.IO.StreamReader file = new System.IO.StreamReader(fileName);
-                string line =  file.ReadLine();
-                while(line != null && !line.StartsWith("#"))
-                {
-                    //   Debug.Log(line);
-                        string[] kp = line.Split('=');
-                        if (kp.Length >= 2)
-                        {
-                            //handle lines like this: key = myAwesome=Value  otherwise this can break if it's reading in a link.
-                            if (kp.Length > 2) 
-                            {
-                                for (int i = 2; i < kp.Length; i++) //stick all the extra stuff back into kp[1]
-                                {
-                                    kp[1] += "=" + kp[i];
-                                }
-                            }
-
-                            kp[0] = kp[0].Trim(); //trim trailing whitespaces for safety
-                            kp[1] = kp[1].Trim();
-
-                            if (populate && !hasKey(kp[0])) //populate tells us to ADD non-existent keys, and this one doesn't exist so add it.
-                            {
-                                keyPairs.Add(kp[0], kp[1]);
-                            }
-                            else
-                                internalSetValue(kp[0], kp[1]);  //either we are ignoring non-existent keys (!populate) or we already know that the key exists (from hasKey()).
-                        }
-                        else if (line == "")
-                        {
-                            //skip
-                        }
-                        else
-                            Debug.Log("WARNING: invalid line in data file: " + fileName + " LINE: " + line);
-
-                        line = file.ReadLine();
-                }
-
-                file.Close();
-                return true;
+            {
+                string readText = System.IO.File.ReadAllText(fileName);
+                return loadFromString(readText, populate);
             }
             catch
             {
@@ -231,6 +192,47 @@ public class dataFileDict : MonoBehaviour {
         }
         Debug.Log("The data file: " + fileName + " does not exist, and therefore could not be read.");
         return false;
+    }
+
+
+
+    public virtual bool loadFromString(string str, bool populate = true)
+    {
+                        
+        string[] lines = System.Text.RegularExpressions.Regex.Split(str, "\r\n|\r|\n");
+        for (int l = 0; l < lines.Length; l++)
+        {
+            if (lines[l] == null || lines[l] == "" || lines[l].StartsWith("#"))
+                continue;
+
+            //   Debug.Log(line);
+            string[] kp = lines[l].Split('=');
+            if (kp.Length >= 2)
+            {
+                //handle lines like this: key = myAwesome=Value  otherwise this can break if it's reading in a link.
+                if (kp.Length > 2) 
+                {
+                    for (int i = 2; i < kp.Length; i++) //stick all the extra stuff back into kp[1]
+                    {
+                        kp[1] += "=" + kp[i];
+                    }
+                }
+
+                kp[0] = kp[0].Trim(); //trim trailing whitespaces for safety
+                kp[1] = kp[1].Trim();
+
+                if (populate && !hasKey(kp[0])) //populate tells us to ADD non-existent keys, and this one doesn't exist so add it.
+                {
+                    keyPairs.Add(kp[0], kp[1]);
+                }
+                else
+                    internalSetValue(kp[0], kp[1]);  //either we are ignoring non-existent keys (!populate) or we already know that the key exists (from hasKey()).
+            }
+            else
+                Debug.Log("WARNING: invalid line in data file: " + fileName + " LINE: " + lines[l]);
+        }
+
+        return true;
     }
 
     public virtual void save() //save to disk, note that comments are lost

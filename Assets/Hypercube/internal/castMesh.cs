@@ -100,7 +100,7 @@ namespace hypercube
             if (!preview)
                 preview = GameObject.FindObjectOfType<hypercubePreview>();
 
-            loadSettings();
+            loadSettingsFromUSB();
         }
 
         public void setCustomWidthHeight(float w, float h)
@@ -115,36 +115,41 @@ namespace hypercube
 
 
 
-        public bool loadSettings()
+        public bool loadSettingsFromUSB()
         {
-
             dataFileDict d = GetComponent<dataFileDict>();
-
+                     
             //use this path as a base path to search for the drive provided with Volume.
-             hasValidatedConfig = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
-            
+            hasValidatedConfig = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
+
             d.clear();
 
-#if UNITY_EDITOR
-            UnityEditor.Undo.RecordObject(this, "Loaded calibration settings from file."); //these force the editor to mark the canvas as dirty and save what is loaded.
-#endif
 
-            if (!d.load()) //we failed to load the file!  ...use backup defaults.
+            if (d.load())
+            {
+                #if UNITY_EDITOR
+                UnityEditor.Undo.RecordObject(this, "Loaded calibration settings from file."); //these force the editor to mark the canvas as dirty and save what is loaded.
+                #endif
+                hasValidatedConfig = true;
+                applyLoadedSettings(d);
+            }
+            else //we failed to load the file!  ...use backup defaults.
             {
                 Debug.LogWarning("Could not read calibration data from Volume!\nIs Volume connected via USB? Using defaults..."); //This will never be as good as using the config stored with the hardware and the view will have distortions in Volume's display.
                 hasValidatedConfig = false;
             }
                 
+            return hasValidatedConfig;
+        }
+
+
+        void applyLoadedSettings(dataFileDict d)
+        {             
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
-            if (!loadCalibrationData(out calibrationData, d))
-            {
-                hasValidatedConfig = false;
-                //our calibration is bad, act as if we have none.
-            }
-            else
-                hasValidatedConfig = true;
+            //if our calibration is bad, act as if we have none, by keeping hasValidatedConfig = fase
+            hasValidatedConfig = loadCalibrationData(out calibrationData, d);
 
             Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
   
@@ -166,8 +171,6 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessR", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
-
-            return hasValidatedConfig;
         }
 
         public static bool loadCalibrationData (out Vector2[,,] _vertData, dataFileDict d)

@@ -47,7 +47,7 @@ namespace hypercube
                     checkUSBtimer += Time.deltaTime;
                     if (checkUSBtimer > 2f) //check every 2 seconds
                     {
-                        canvas.loadSettings();
+                        canvas.loadSettingsFromUSB();
                         checkUSBtimer = 0;
                     }
                 }

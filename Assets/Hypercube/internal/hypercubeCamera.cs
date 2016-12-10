@@ -6,7 +6,7 @@ using System.Collections.Generic;
     [ExecuteInEditMode]
     public class hypercubeCamera : MonoBehaviour
     {
-         public const float version = 1.72f;
+         public const float version = 2.0f;
 
          //a static pointer to the last activated hypercubeCameraZ
          public static hypercubeCamera mainCam = null;  
