@@ -267,10 +267,21 @@ namespace hypercube
 
         public float getScreenAspectRatio()
         {
+            float w = 0f;
+            float h = 0f;
+            getScreenDims(ref w, ref h);
+            return w / h;
+        }
+        public void getScreenDims(ref float w, ref float h)
+        {
             if (usingCustomDimensions && customWidth > 2 && customHeight > 2)
-                return customWidth / customHeight;
-            else
-                return (float)Screen.width / (float)Screen.height;
+            {
+                w = customWidth;
+                h = customHeight;
+                return;            
+            }
+            w = (float)Screen.width;
+            h = (float)Screen.height;
         }
 
         void resetTransform() //size the mesh appropriately to the screen
