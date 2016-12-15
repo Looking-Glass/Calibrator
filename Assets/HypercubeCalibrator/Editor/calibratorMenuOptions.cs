@@ -33,7 +33,7 @@ namespace hypercube
 
 
         //test the calibration data
-        [MenuItem("Hypercube/Set Calibration from data", false, 300)]  //# is prio
+        [MenuItem("Hypercube/test Calibration from data", false, 300)]  //# is prio
         public static void openCubeWindowPrefs()
         {
             

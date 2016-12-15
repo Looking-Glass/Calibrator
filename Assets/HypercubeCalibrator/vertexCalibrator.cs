@@ -629,6 +629,22 @@ namespace hypercube
             renderCam.targetTexture = null;
         }
 
+        //this will convert the articulated slices into slices that just define the corners
+        //intended to be used on the 'virgin' slices 
+        static Vector2[,,]  simplifySlices(Vector2[,,] articulatedSlices )
+        {
+            Vector2[,,] output = new Vector2[articulatedSlices.GetLength(0), 2, 2];
+
+            for (int s = 0; s < articulatedSlices.GetLength(0); s++)
+            {
+                output[s, 0, 0] = articulatedSlices[s,0,0];
+                output[s, 0, 1] = articulatedSlices[s, 0, articulatedSlices.GetLength(2) -1];
+                output[s, 1, 0] = articulatedSlices[s, articulatedSlices.GetLength(1) - 1, 0];
+                output[s, 1, 1] = articulatedSlices[s, articulatedSlices.GetLength(1) - 1, articulatedSlices.GetLength(2) - 1];
+            }
+            return output;
+        }
+
 
 
     }
