@@ -233,6 +233,25 @@ namespace hypercube
 		#endif
 		void setProjectionAspectRatios(float xCm, float yCm, float zCm) 
 		{
+            if (xCm == 0f) //sanity check
+            {
+                xCm = 1f;
+                Debug.LogWarning("Bad aspect ratio was given! Fixing...");
+            }
+
+            if (yCm == 0f)
+            {
+                yCm = 1f;
+                Debug.LogWarning("Bad aspect ratio was given! Fixing...");
+            }
+
+            if (zCm == 0f)
+            {
+                zCm = 1f;
+                Debug.LogWarning("Bad aspect ratio was given! Fixing...");
+            }
+                
+
 			aspectX = new Vector3(1f, yCm/xCm, zCm/xCm);
 			aspectY = new Vector3(xCm/yCm, 1f, zCm / yCm);
 			aspectZ = new Vector3(xCm/zCm, yCm / zCm, 1f);
