@@ -156,51 +156,6 @@ namespace hypercube
         //    midR.x = Mathf.Lerp(topR.x, lowR.x, Mathf.InverseLerp(topR.y, lowR.y, midR.y));
         //}
 
-        //public void bow()
-        //{
-        //    //add bow distortion compensation
-        //    //bow is stored as top,bottom,left,right  = x y z w
-        //    float bowX = 0f;
-        //    float bowY = 0f;
-        //    float xBowAmount = 0f;
-        //    float yBowAmount = 0f;
-        //    float averageBowX = (bow.z + bow.w) / 2f;
-        //    float averageBowY = (bow.x + bow.y) / 2f;
-        //    if (o == shardOrientation.UL)//phase: 1 1
-        //    {
-        //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); //left
-        //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
-        //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
-        //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
-        //    }
-        //    else if (o == shardOrientation.UR)//phase: 1 0
-        //    {
-        //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue); //right
-        //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
-        //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
-        //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
-        //    }
-        //    else if (o == shardOrientation.LL)//phase: 0 1
-        //    {
-        //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); // *rowLerpValue; //left
-        //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
-        //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
-        //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
-        //    }
-        //    else if (o == shardOrientation.LR)//phase: 0 0
-        //    {
-        //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue);//right
-        //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
-        //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
-        //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
-        //    }
-
-        //    bowX -= xBowAmount * .5f; //the lines above pivot the bowing on the centerpoint of the slice. The two following lines change the pivot to the corner points of articulation so that the center is what moves.
-        //    bowY -= yBowAmount * .5f;
-        //    lerpedVector.x += bowX;
-        //    lerpedVector.y += bowY;
-        //    //end bow distortion compensation
-        //}
 
 
         public void resetOriginalVertexOffsets(bool alsoNonOriginal = false)
@@ -262,45 +217,45 @@ namespace hypercube
 
         void Update()
         {
-			if (Input.GetKeyDown (KeyCode.Alpha1))
-				sensitivity = .00002f;
-			else if (Input.GetKeyDown (KeyCode.Alpha2))
-				sensitivity = .0002f;
-			else if (Input.GetKeyDown (KeyCode.Alpha3))
-				sensitivity = .007f;
-			else if (Input.GetKeyDown (KeyCode.Alpha4))
-				sensitivity = .015f;
-			else if (Input.GetKeyDown (KeyCode.Alpha5))
-				sensitivity = .15f;
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+                sensitivity = .00002f;
+            else if (Input.GetKeyDown(KeyCode.Alpha2))
+                sensitivity = .0002f;
+            else if (Input.GetKeyDown(KeyCode.Alpha3))
+                sensitivity = .007f;
+            else if (Input.GetKeyDown(KeyCode.Alpha4))
+                sensitivity = .015f;
+            else if (Input.GetKeyDown(KeyCode.Alpha5))
+                sensitivity = .15f;
             else if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
-				int oldX = displayLevelX;
-				int oldY = displayLevelY;
-				displayLevelX++;
-				displayLevelY++;
+                int oldX = displayLevelX;
+                int oldY = displayLevelY;
+                displayLevelX++;
+                displayLevelY++;
 
-				validateDisplayLevel ();
-				if (displayLevelX != oldX) 
-					selectionX *= 2;
-				if (displayLevelY != oldY)
-					selectionY *= 2;
-				
-				updateTextures ();                 
+                validateDisplayLevel();
+                if (displayLevelX != oldX)
+                    selectionX *= 2;
+                if (displayLevelY != oldY)
+                    selectionY *= 2;
+
+                updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-				int oldX = displayLevelX;
-				int oldY = displayLevelY;
-				displayLevelX--;
-				displayLevelY--;
+                int oldX = displayLevelX;
+                int oldY = displayLevelY;
+                displayLevelX--;
+                displayLevelY--;
 
-				validateDisplayLevel ();
-				if (displayLevelX != oldX) 
-					selectionX /= 2;
-				if (displayLevelY != oldY)
-					selectionY /= 2;
+                validateDisplayLevel();
+                if (displayLevelX != oldX)
+                    selectionX /= 2;
+                if (displayLevelY != oldY)
+                    selectionY /= 2;
 
-				updateTextures ();
+                updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.W))
             {
@@ -346,8 +301,13 @@ namespace hypercube
                 updateTextures();
             }
 
+            else if (Input.GetKeyDown(KeyCode.Alpha9))
+            {
 
-            if (Input.GetKey(KeyCode.Mouse1))
+            }
+
+
+                if (Input.GetKey(KeyCode.Mouse1))
             {
                 Vector3 diff = lastMousePos - Input.mousePosition;
                 if (diff != Vector3.zero)
@@ -468,8 +428,124 @@ namespace hypercube
                     }
 				}
 			}				
-
 		}
+
+
+        /// <summary>
+        /// This applies a bowing offset to verts at the most detailed level
+        /// </summary>
+        /// <param name="top"></param>
+        /// <param name="bottom"></param>
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+      public void bowVerts(float top, float bottom, float left, float right)
+        {
+            /*
+             *           int middleX = (vertices.GetLength(1) - 1) / 2;
+                     int middleY = (vertices.GetLength(2) - 1) / 2;
+
+                     int w = vertices.GetLength(2);
+                     int h = vertices.GetLength(1);
+                     Vector2 bow = new Vector2();
+                     for (int vy = 0; vy < h; vy++)
+                     {
+                         for (int vx = 0; vx < w; vx++)
+                         {
+
+                             float rowLerpValue = vx/(float)w;
+                             float columnLerpValue = vy / (float)h;
+
+                             if (vx < middleX) //left
+                             {
+                                 if (vy < middleY)//top left
+                                 {
+                                     //phase 1 1
+                                     bow.x = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+                                     bow.y = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+                                 }
+                                 else if (vy > middleY)//bottom left
+                                 {
+                                     //phase: 0 1
+                                     bow.x = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+                                     bow.y = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+                                 }
+                                 else if (vy == middleY)//middle left
+                                 {
+                                 }
+                             }
+                             else if (vx > middleX)//right
+                             {
+                                 if (vy < middleY) //top right
+                                 {
+                                     //phase: 1 0 
+                                     bow.x = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+                                     bow.y = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+                                 }
+                                 else if (vy > middleY)//bottom right 
+                                 {
+                                     //phase: 0 0
+                                     bow.x = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+                                     bow.y = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+                                 }
+                                 else if (vy == middleY) //middle right
+                                 {
+                                 }
+                             }
+                             else if (vx == middleX)
+                             {
+                                 if (vy < middleY) //middle top
+                                 {
+                                 }
+                                 else if (vy > middleY) //middle bottom
+                                 {
+                                 }
+                             }
+                         }
+                     }
+         */
+            //    //add bow distortion compensation
+            //    //bow is stored as top,bottom,left,right  = x y z w
+            //    float bowX = 0f;
+            //    float bowY = 0f;
+            //    float xBowAmount = 0f;
+            //    float yBowAmount = 0f;
+            //    float averageBowX = (bow.z + bow.w) / 2f;
+            //    float averageBowY = (bow.x + bow.y) / 2f;
+            //    if (o == shardOrientation.UL)//phase: 1 1
+            //    {
+            //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); //left
+            //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
+            //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+            //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+            //    }
+            //    else if (o == shardOrientation.UR)//phase: 1 0
+            //    {
+            //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue); //right
+            //        yBowAmount = Mathf.Lerp(bow.x, averageBowY, rowLerpValue);  //top
+            //        bowX = (1f - Mathf.Cos(1f - rowLerpValue)) * xBowAmount;
+            //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+            //    }
+            //    else if (o == shardOrientation.LL)//phase: 0 1
+            //    {
+            //        xBowAmount = Mathf.Lerp(bow.z, averageBowX, columnLerpValue); // *rowLerpValue; //left
+            //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
+            //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+            //        bowY = (1f - Mathf.Cos(1f - columnLerpValue)) * yBowAmount;
+            //    }
+            //    else if (o == shardOrientation.LR)//phase: 0 0
+            //    {
+            //        xBowAmount = Mathf.Lerp(bow.w, averageBowX, 1f - columnLerpValue);//right
+            //        yBowAmount = Mathf.Lerp(bow.y, averageBowY, 1f - rowLerpValue);  //bottom
+            //        bowX = (1f - Mathf.Cos(0f - rowLerpValue)) * xBowAmount;
+            //        bowY = (1f - Mathf.Cos(0f - columnLerpValue)) * yBowAmount;
+            //    }
+
+            //    bowX -= xBowAmount * .5f; //the lines above pivot the bowing on the centerpoint of the slice. The two following lines change the pivot to the corner points of articulation so that the center is what moves.
+            //    bowY -= yBowAmount * .5f;
+            //    lerpedVector.x += bowX;
+            //    lerpedVector.y += bowY;
+            //    //end bow distortion compensation
+        }
 
 
         //this method returns an array containing what elements should be highlighted given each possible detail level
@@ -630,7 +706,7 @@ namespace hypercube
         }
 
         //this will convert the articulated slices into slices that just define the corners
-        //intended to be used on the 'virgin' slices 
+        //it is intended to be used only on the 'virgin' slices, so they can be stored in a tiny format on the PCB
         static Vector2[,,]  simplifySlices(Vector2[,,] articulatedSlices )
         {
             Vector2[,,] output = new Vector2[articulatedSlices.GetLength(0), 2, 2];

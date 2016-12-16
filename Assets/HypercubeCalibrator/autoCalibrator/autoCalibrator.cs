@@ -234,37 +234,37 @@ namespace hypercube
         //sensorData z element is expected to be the length of the resolution.
         public static bool getCoordsFromData(int sliceCount, int[][][]sensorDataX, int[][][]sensorDataY, out Vector2[,,] coordinates)
         {
-            if (sensorDataX.GetLength(0) != sensorDataY.GetLength(0) || sensorDataX.GetLength(1) != sensorDataY.GetLength(1) )
+            if (sensorDataX.Length != sensorDataY.Length || sensorDataX[0].Length != sensorDataY[0].Length)
             {
                 Debug.LogWarning("Sensor Array length doesn't match!");
                 coordinates = null;
                 return false;
             }
 
-            float resX = sensorDataX.GetLength(2);
-            float resY = sensorDataY.GetLength(2);
+            float resX = sensorDataX[0][0].Length;
+            float resY = sensorDataY[0][0].Length;
 
-            coordinates = new Vector2[sliceCount, sensorDataX.GetLength(0), sensorDataX.GetLength(1)];
+            coordinates = new Vector2[sliceCount, sensorDataX.Length, sensorDataX[0].Length];
             //fill in the data
             for (int s = 0; s < sliceCount; s++)
             {
-                for (int x = 0; x < sensorDataX.GetLength(0); x++)
+                for (int x = 0; x < sensorDataX.Length; x++)
                 {
-                    for (int y = 0; y < sensorDataX.GetLength(1); y++)
+                    for (int y = 0; y < sensorDataX[0].Length; y++)
                     {
                         coordinates[s, x, y] = new Vector2();
                     }
                 }
             }
 
-            for (int x = 0; x < sensorDataX.GetLength(0); x++)
+            for (int x = 0; x < sensorDataX.Length; x++)
             {
-                for (int y = 0; y < sensorDataX.GetLength(1); y++)
+                for (int y = 0; y < sensorDataX[0].Length; y++)
                 {
                     int[] xData = sensorDataX[x][y];
                     int[] yData = sensorDataY[x][y];
-                    float[] valuesX = autoCalibrator.getPeaksFromData(1, 1, sliceCount, .13f, xData);  //TODO settings!
-                    float[] valuesY = autoCalibrator.getPeaksFromData(1, 1, sliceCount, .13f, yData);
+                    float[] valuesX = autoCalibrator.getPeaksFromData(10, 80, sliceCount, .13f, xData);  //TODO settings!
+                    float[] valuesY = autoCalibrator.getPeaksFromData(10, 80, sliceCount, .13f, yData);
                     if (valuesX.Length != sliceCount || valuesY.Length != sliceCount )
                     {
                         Debug.LogWarning("Received peak data of incorrect length! Not all slices were accounted for.");   
@@ -593,10 +593,10 @@ namespace hypercube
                 bool foundMatch = false;
                 for (int c = 0; c < candidates.Count; c++)
                 {
-                    float testDiff = candidates[i] > expectedVal ? candidates[i] - expectedVal : expectedVal - candidates[i];
+                    float testDiff = candidates[c] > expectedVal ? candidates[c] - expectedVal : expectedVal - candidates[c];
                     if (testDiff <= medianDiff * allowedDeviation)
                     {
-                        output.Add(candidates[i]);
+                        output.Add(candidates[c]);
                         foundMatch = true;
                         break;
                     }
