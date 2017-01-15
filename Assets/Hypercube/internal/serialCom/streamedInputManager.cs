@@ -50,7 +50,7 @@ namespace hypercube
                     dItr++;
                     if (dItr == delimiter.Length)
                     {
-                        //we found a chunk of data, cut out the delimiter and send it to the delegate for processing.
+                        //we found a chunk of data, cut out the delimiter and send it off for processing.
                         byte[] outBytes = new byte[itr - dItr + 1];
                         System.Buffer.BlockCopy(buffer, 0, outBytes, 0, itr - dItr + 1);
                         

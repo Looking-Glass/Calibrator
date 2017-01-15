@@ -20,6 +20,8 @@ namespace hypercube
         public int rawTouchScreenX;
         public int rawTouchScreenY;
 
+        public touchScreenOrientation orientation;
+
         public float getDistance(touchInterface i)
         {
             return Vector2.Distance(normalizedPos, i.normalizedPos);
@@ -35,7 +37,7 @@ namespace hypercube
     //Un-needed data has been abstracted away for maximum compatibility among all types of Volume hardware.
     public class touch
     {
-        public readonly touchScreenOrientation orientation;
+        public touchScreenOrientation orientation { get; private set; }
         public System.UInt16 id { get; private set; }
 
         public enum activationState
@@ -56,9 +58,9 @@ namespace hypercube
         private float _distX; public float distX { get { if (activeCheck()) return _distX; return 0f; } } //the physical distance that the touch traveled in Centimeters
         private float _distY; public float distY { get { if (activeCheck()) return _distY; return 0f; } } //the physical distance that the touch traveled in Centimeters
 
-        public touch(touchScreenOrientation _orientation)
+        public touch()
         {
-            orientation = _orientation;
+            orientation =  touchScreenOrientation.INVALID_TOUCHSCREEN;
             _posX = _posY = physicalPos.x = physicalPos.y = _diffX = _diffY = _distX = _distY = 0;
             touchScreenX = touchScreenY = 0;
             state = activationState.DESTROYED;
@@ -109,6 +111,8 @@ namespace hypercube
             i.rawTouchScreenX = touchScreenX;
             i.rawTouchScreenY = touchScreenY;
 
+            i.orientation = orientation;
+
             i._id = id;
             if (state < activationState.ACTIVE)
                 i.active = false;
@@ -139,6 +143,8 @@ namespace hypercube
                 _distX = i.physicalPos.x - physicalPos.x;
                 _distY = i.physicalPos.y - physicalPos.y;
             }
+
+            orientation = i.orientation;
 
             _posX = i.normalizedPos.x;
             _posY = i.normalizedPos.y;

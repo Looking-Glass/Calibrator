@@ -2,7 +2,7 @@
 /**
  * Author: Daniel Wilches
  * 
- * Modified for Hypercube by Dez @ lookingglassfactory.com
+ * Modified for Hypercube by dez @ lookingglassfactory.com
  */
 
 using UnityEngine;

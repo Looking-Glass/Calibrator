@@ -263,9 +263,9 @@ namespace hypercube
                 {
                     int[] xData = sensorDataX[x][y];
                     int[] yData = sensorDataY[x][y];
-                    float[] valuesX = autoCalibrator.getPeaksFromData(10, 80, sliceCount, .13f, xData);  //TODO settings!
+                    float[] valuesX = autoCalibrator.getPeaksFromData(100, 300, 1, .13f, xData); //again, because this is a vertically oriented slicer, we only expect to see one spike along x
                     float[] valuesY = autoCalibrator.getPeaksFromData(10, 80, sliceCount, .13f, yData);
-                    if (valuesX.Length != sliceCount || valuesY.Length != sliceCount )
+                    if ( valuesY.Length != sliceCount )
                     {
                         Debug.LogWarning("Received peak data of incorrect length! Not all slices were accounted for.");   
                         return false;
@@ -273,7 +273,7 @@ namespace hypercube
 
                     for (int s = 0; s < sliceCount; s++) 
                     {
-                        coordinates[s, x, y].x = valuesX[s]/resX;  
+                        coordinates[s, x, y].x = valuesX[0]/resX;   //note that since this is a vertically oriented slicer, that the x values are recycled since they all scan at once
                         coordinates[s, x, y].y = valuesY[s]/resY; 
                     }                                      
                 }
@@ -557,7 +557,7 @@ namespace hypercube
             List<List<int>> peaks = new List<List<int>>();
             for (int p = 0; p < noisyPeaks.Count; p++)
             {
-                if (noisyPeaks[p].Count >= 1)   //it's 1, so this is 'off' for now.
+                if (noisyPeaks[p].Count >= 3)   //# is the amount of data points needed to consider a peak
                     peaks.Add(noisyPeaks[p]);
             }
 
@@ -570,40 +570,45 @@ namespace hypercube
             }
 
 
-            //finally, lets do a check to make sure that the peaks are evenly distributed, removing or replacing any that are not;
-            //so first we do a diff comparison between all of them.
-            //then remove any where the differences were more than 15% of the rest and do it again.
-            List<float> differences = new List<float>();
-            for (int i = 0; i < candidates.Count -1; i ++)
+            List<float> output = new List<float>();
+            if (expectedPeaks < 3) //if we have less than 3 expected peaks, the code below this is useless. Just return what we have.
+                output = candidates;
+            else
             {
-                differences.Add(candidates[i + 1] - candidates[i]);
-            }
-            float[] outliers;
-            int medianIndex = 0;
-            float medianDiff = findOutliers(differences, allowedDeviation, out outliers, out medianIndex);
-
-            //now lets go through them again, this time having some statistical info in hand (median values)                  
-            float startingOffset = candidates[medianIndex] % medianDiff; //as best we can know, the medianDiff and medianIndex are well placed data, so lets use them as a base point to check the rest.
-
-            //compare our found peaks to where we expect them to be based on the median info. namely, at a mostly steady distance from each other (within allowedDeviation).
-            List<float> output = new List<float>();            
-            for (int i = 0; i < expectedPeaks; i++)
-            {
-                float expectedVal = startingOffset + (i * medianDiff);
-                bool foundMatch = false;
-                for (int c = 0; c < candidates.Count; c++)
-                {
-                    float testDiff = candidates[c] > expectedVal ? candidates[c] - expectedVal : expectedVal - candidates[c];
-                    if (testDiff <= medianDiff * allowedDeviation)
-                    {
-                        output.Add(candidates[c]);
-                        foundMatch = true;
-                        break;
-                    }
-                }
-
-                if (!foundMatch)
-                    output.Add(badValue); 
+	            //finally, lets do a check to make sure that the peaks are evenly distributed, removing or replacing any that are not;
+	            //so first we do a diff comparison between all of them.
+	            //then remove any where the differences were more than 15% of the rest and do it again.
+	            List<float> differences = new List<float>();
+	            for (int i = 0; i < candidates.Count -1; i ++)
+	            {
+	                differences.Add(candidates[i + 1] - candidates[i]);
+	            }
+	            float[] outliers;
+	            int medianIndex = 0;
+	            float medianDiff = findOutliers(differences, allowedDeviation, out outliers, out medianIndex);
+	
+	            //now lets go through them again, this time having some statistical info in hand (median values)                  
+	            float startingOffset = candidates[medianIndex] % medianDiff; //as best we can know, the medianDiff and medianIndex are well placed data, so lets use them as a base point to check the rest.
+	
+	            //compare our found peaks to where we expect them to be based on the median info. namely, at a mostly steady distance from each other (within allowedDeviation).                    
+	            for (int i = 0; i < expectedPeaks; i++)
+	            {
+	                float expectedVal = startingOffset + (i * medianDiff);
+	                bool foundMatch = false;
+	                for (int c = 0; c < candidates.Count; c++)
+	                {
+	                    float testDiff = candidates[c] > expectedVal ? candidates[c] - expectedVal : expectedVal - candidates[c];
+	                    if (testDiff <= medianDiff * allowedDeviation)
+	                    {
+	                        output.Add(candidates[c]);
+	                        foundMatch = true;
+	                        break;
+	                    }
+	                }
+	
+	                if (!foundMatch)
+	                    output.Add(badValue); 
+	            }
             }
 
             int missingElements = expectedPeaks - output.Count; //add any missing.
@@ -618,6 +623,13 @@ namespace hypercube
 
         static float findOutliers(List<float> data, float allowedDeviation, out float[] outliers, out int medianIndex)
         {
+            if (data.Count < 3) //there is no point to doing this with a tiny amount of data points.
+            {
+                outliers = new float[0];
+                medianIndex = 0;
+                return data[0];
+            }
+
             //returns the median difference. outlying values are given in 'outliers'
             float[] sorted = data.ToArray();
             System.Array.Sort(sorted);

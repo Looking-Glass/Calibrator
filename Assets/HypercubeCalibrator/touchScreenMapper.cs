@@ -66,13 +66,13 @@ namespace hypercube
 
             if (stage == calibrationStage.STEP_save)
             {
-                if (hypercube.input.frontScreen.touchCount > 0)
+                if (hypercube.input.touchPanel.touchCount > 0)
                 {
                     //debug info
                     //hypercube.touchInterface i = new hypercube.touchInterface();
                     //hypercube.input.frontScreen.touches[0]._getInterface(ref i);
                     //outputText.text = hypercube.input.frontScreen.touches[0].id + ":  " + hypercube.input.frontScreen.touches[0].posX + " - " + hypercube.input.frontScreen.touches[0].posY + "\n" + i.rawTouchScreenX + "  " + i.rawTouchScreenY;
-                    circle.transform.position = hypercube.input.frontScreen.touches[0].getWorldPos(cam);
+                    circle.transform.position = hypercube.input.touchPanel.touches[0].getWorldPos(cam);
                 }
             }
         }
@@ -180,7 +180,7 @@ namespace hypercube
             d.setValue("touchScreenMapRight", right);
 
 #if HYPERCUBE_INPUT
-            hypercube.input.frontScreen.setTouchScreenDims(d);
+            hypercube.input.touchPanel.setTouchScreenDims(d);
 #endif
         }
 

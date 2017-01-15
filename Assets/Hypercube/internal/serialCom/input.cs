@@ -21,22 +21,23 @@ namespace hypercube
             DontDestroyOnLoad(this.gameObject);
             //end singleton
 
-            frontScreen = backScreen = null;
+            touchPanel = null;
 
             setupSerialComs();
         }
-      
+
         public int baudRate = 57600;
         public int reconnectionDelay = 500;
         public int maxUnreadMessage = 5;
         public int maxAllowedFailure = 3;
         public bool debug = false;
 
-        const int maxTouchesPerScreen = 9;
+        public static touchScreenInputManager touchPanel
+        {
+            get; private set;
+        }  
 
-        public static touchScreenInputManager frontScreen { get; private set; }  //the front touchscreen
-        public static touchScreenInputManager backScreen {get; private set; } //the back touchscreen
-
+        //these keep track of all touchScreen targets, and hence the in input system can send them user input data as it is received.
         static HashSet<touchScreenTarget> eventTargets = new HashSet<touchScreenTarget>();
         public static void _setTouchScreenTarget(touchScreenTarget t, bool addRemove)
         {
@@ -65,11 +66,8 @@ namespace hypercube
 
 #if HYPERCUBE_INPUT
 
-            if (frontScreen != null)
-                frontScreen.setTouchScreenDims(d);
-
-            if (backScreen != null)
-                frontScreen.setTouchScreenDims(d);
+            if (touchPanel != null)
+                touchPanel.setTouchScreenDims(d);
 #endif
         }
 
@@ -83,10 +81,13 @@ namespace hypercube
                 return;
             }
 
+            if (eventTargets.Count == 0)
+                return;
+
             if (t.state == touch.activationState.TOUCHDOWN)
             {
-                    foreach(touchScreenTarget target in eventTargets)
-                        target.onTouchDown(t);
+                foreach (touchScreenTarget target in eventTargets)
+                    target.onTouchDown(t);
             }
             else if (t.state == touch.activationState.ACTIVE)
             {
@@ -97,13 +98,12 @@ namespace hypercube
             {
                 foreach (touchScreenTarget target in eventTargets)
                     target.onTouchUp(t);
-            }               
+            }
         }
 
         void setupSerialComs()
         {
             string frontComName = "";
-            string backComName = "";
             string[] names = getPortNames();
 
             if (names.Length == 0)
@@ -114,26 +114,21 @@ namespace hypercube
 
             for (int i = 0; i < names.Length; i++)
             {
-                if (names[i].StartsWith("COM") || names[i].Contains("usbserial"))
+                if (names[i].StartsWith("COM") || names[i].Contains("LKGTP"))
                 {
                     frontComName = names[i];
                 }
             }
 
-            //TODO find back screen serial port name
-
-            if (frontScreen == null && frontComName != "" )
-                frontScreen = new touchScreenInputManager("Front Touch Screen", addSerialPortInput(frontComName), touchScreenOrientation.FRONT_TOUCHSCREEN);
-
-            if (backScreen == null && backComName != "")
-                backScreen = new touchScreenInputManager("Back Touch Screen", addSerialPortInput(frontComName), touchScreenOrientation.BACK_TOUCHSCREEN);
+            if (touchPanel == null && frontComName != "")
+                touchPanel = new touchScreenInputManager("Front Touch Screen", createInputSerialPort(frontComName));
         }
 
 
         void Update()
         {
-            if (frontScreen != null && frontScreen.serial.enabled)
-                frontScreen.update(debug);
+            if (touchPanel != null && touchPanel.serial.enabled)
+                touchPanel.update(debug);
             if (backScreen != null && backScreen.serial.enabled)
                 backScreen.update(debug);
         }
@@ -161,9 +156,12 @@ namespace hypercube
             return serial_ports.ToArray();
 #endif
         }
-       
 
-        SerialController addSerialPortInput(string comName)
+
+
+
+
+        SerialController createInputSerialPort(string comName)
         {
             SerialController sc = gameObject.AddComponent<SerialController>();
             sc.portName = comName;
@@ -189,34 +187,34 @@ namespace hypercube
 
         public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
         {
-            if ( !instance)
+            if (!instance)
                 return false;
 
-            if (frontScreen != null)
+            if (touchPanel != null)
             {
-                if (!frontScreen.serial.enabled)
-                    frontScreen.serial.readDataAsString = true; //we must wait for another init:done before we give the go-ahead to get raw data again.
-                else if (frontScreen.serial.readDataAsString == false)
+                if (!touchPanel.serial.enabled)
+                    touchPanel.serial.readDataAsString = true; //we must wait for another init:done before we give the go-ahead to get raw data again.
+                else if (touchPanel.serial.readDataAsString == false)
                     return true;
             }
-           
-            return false;
-        }
-
-  /*      public static bool sendCommandToHardware(string cmd)
-        {
-            if (isHardwareReady())
-            {
-                touchScreenFront.serial.SendSerialMessage(cmd + "\n\r");
-                return true;
-            }
-            else
-                Debug.LogWarning("Can't send message to hardware, it is either not yet initialized, disconnected, or malfunctioning.");
 
             return false;
         }
-*/
-   
+
+        /*      public static bool sendCommandToHardware(string cmd)
+              {
+                  if (isHardwareReady())
+                  {
+                      touchScreenFront.serial.SendSerialMessage(cmd + "\n\r");
+                      return true;
+                  }
+                  else
+                      Debug.LogWarning("Can't send message to hardware, it is either not yet initialized, disconnected, or malfunctioning.");
+
+                  return false;
+              }
+      */
+
 #else //We use HYPERCUBE_INPUT because I have to choose between this odd warning below, or immediately throwing a compile error for new users who happen to have the wrong settings (IO.Ports is not included in .Net 2.0 Subset).  This solution is odd, but much better than immediately failing to compile.
     
         void setupSerialComs()
@@ -244,6 +242,8 @@ namespace hypercube
             Debug.LogWarning("TO USE HYPERCUBE INPUT: \n1) Go To - Edit > Project Settings > Player    2) Set Api Compatability Level to '.Net 2.0'    3) Add HYPERCUBE_INPUT to Scripting Define Symbols (separate by semicolon, if there are others)");
         }
 #endif
+
     }
+
 
 }

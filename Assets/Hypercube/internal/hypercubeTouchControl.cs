@@ -8,10 +8,10 @@ using System.Collections;
 
         void Update()
         {
-            if (hypercube.input.frontScreen == null) //Volume not connected via USB, or not yet init
+            if (hypercube.input.touchPanel == null) //Volume not connected via USB, or not yet init
                 return;  
 
-            Vector2 average = hypercube.input.frontScreen.averageDiff;
+            Vector2 average = hypercube.input.touchPanel.averageDiff;
 
             if (average == Vector2.zero)
                 return;
@@ -19,11 +19,11 @@ using System.Collections;
             transform.Rotate(0f, average.x * sensitivity * 180f, 0f, Space.World);
          
             if (allowTwist)
-                transform.Rotate(-average.y * sensitivity * 180f, 0f, hypercube.input.frontScreen.twist, Space.Self);
+                transform.Rotate(-average.y * sensitivity * 180f, 0f, hypercube.input.touchPanel.twist, Space.Self);
             else
                 transform.Rotate(-average.y * sensitivity * 180f, 0f, 0f, Space.Self);
 
-            transform.localScale *= 1f / hypercube.input.frontScreen.pinch;
+            transform.localScale *= 1f / hypercube.input.touchPanel.pinch;
         }
 
     }
