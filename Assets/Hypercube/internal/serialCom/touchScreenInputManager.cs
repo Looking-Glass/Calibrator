@@ -33,10 +33,14 @@ namespace hypercube
     }
 
 
-    public class touchScreenInputManager  : streamedInputManager
+public class touchScreenInputManager  : streamedInputManager
 {
 
     public float firmwareVersion { get; private set; }
+
+    float projectionWidth = 20f; //the physical size of the projection, in centimeters
+    float projectionHeight = 12f;
+    float projectionDepth = 20f;
 
     touchScreen[] touchScreens = null;
     public touchScreen getPanel(touchScreenOrientation p)
@@ -50,18 +54,51 @@ namespace hypercube
     public touchScreen front { get {return touchScreens[0]; } } //quick access
     public touchScreen back { get {return touchScreens[1]; } }
 
-    
+    public touchScreen this[int screenIndex] //index access to a particular touch screen
+    {
+        get
+        {
+            if (screenIndex < 0 || screenIndex >= touchScreens.Length)
+                return null;
+            return touchScreens[screenIndex];
+        }
+    }
+    public touchScreen this[touchScreenOrientation o] //index access to a particular touch screen
+    {
+        get
+        {
+            return getPanel(o);
+        }
+    }
+
+    //easy accessors to the data of screen 0, which will be what is used 95% of the time.
+    public touch[] touches { get {return touchScreens[0].touches;}}
+    public uint touchCount { get {return touchScreens[0].touchCount;}}
+    public Vector2 averagePos { get {return touchScreens[0].averagePos;}} //The 0-1 normalized average position of all touches on touch screen 0
+    public Vector2 averageDiff { get {return touchScreens[0].averageDiff;}} //The normalized distance the touch moved 0-1 on touch screen 0
+    public Vector2 averageDist { get {return touchScreens[0].averageDist;}} //The distance the touch moved, in Centimeters  on touch screen 0
+    public float twist { get {return touchScreens[0].twist;}}
+    public float pinch { get {return touchScreens[0].pinch;}}//0-1
+    public float touchSize { get {return touchScreens[0].touchSize;}} //0-1
+    public float touchSizeCm { get {return touchScreens[0].touchSizeCm;}}
+
 
 #if HYPERCUBE_INPUT
 
     static readonly byte[] emptyByte = new byte[] { 0 };
 
-    public touchScreenInputManager( SerialController _serial) : base(_serial, new byte[]{255,255}, 1024)
+    //constructor
+    public touchScreenInputManager( SerialController _serial, float _firmwareVersion) : base(_serial, new byte[]{255,255}, 1024)
     {
-        firmwareVersion = -9999f;
-        touchScreens = new touchScreen[8]; //start with a blank array.  When we get info from the serial port we will know how many touch panels to enact.
+        firmwareVersion = _firmwareVersion;
 
-        _serial.readDataAsString = true; //start with data
+        touchScreens = new touchScreen[8]; 
+        for (int t = 0; t < touchScreens.Length; t++)
+        {
+            touchScreens[t] = new touchScreen((touchScreenOrientation)t);
+        }
+
+        _serial.readDataAsString = true; //start with string info, so we can get config data from the PCB.
     }
 
     public void setTouchScreenDims(dataFileDict d)
@@ -69,31 +106,25 @@ namespace hypercube
         if (d == null)
             return;
 
-        if (!d.hasKey("touchScreenResX") ||
-            !d.hasKey("touchScreenResY") ||
-            !d.hasKey("projectionCentimeterWidth") ||
+        if (!d.hasKey("projectionCentimeterWidth") ||
             !d.hasKey("projectionCentimeterHeight") ||
-            !d.hasKey("projectionCentimeterDepth") ||
-            !d.hasKey("touchScreenMapTop") ||
-            !d.hasKey("touchScreenMapBottom") ||
-            !d.hasKey("touchScreenMapLeft") ||
-            !d.hasKey("touchScreenMapRight")  //this one is necessary to keep the hypercube aspect ratio
+            !d.hasKey("projectionCentimeterDepth") 
             )
             Debug.LogWarning("Volume config file lacks touch screen hardware specs!"); //these must be manually entered, so we should warn if they are missing.
 
-        screenResX = d.getValueAsFloat("touchScreenResX", screenResX);
-        screenResY = d.getValueAsFloat("touchScreenResY", screenResY);
+
         projectionWidth = d.getValueAsFloat("projectionCentimeterWidth", projectionWidth);
         projectionHeight = d.getValueAsFloat("projectionCentimeterHeight", projectionHeight);
         projectionDepth = d.getValueAsFloat("projectionCentimeterDepth", projectionDepth);
 
-        topLimit = d.getValueAsFloat("touchScreenMapTop", topLimit); //use averages.
-        bottomLimit = d.getValueAsFloat("touchScreenMapBottom", bottomLimit);
-        leftLimit = d.getValueAsFloat("touchScreenMapLeft", leftLimit);
-        rightLimit = d.getValueAsFloat("touchScreenMapRight", rightLimit);
-
-        touchScreenWidth = projectionWidth * (1f/(rightLimit - leftLimit));
-        touchScreenHeight = projectionHeight * (1f/(topLimit - bottomLimit));
+        touchScreens[0]._init(0, d, projectionWidth, projectionHeight); //front
+        touchScreens[1]._init(1, d, projectionWidth, projectionHeight); //back
+        touchScreens[2]._init(2, d, projectionDepth, projectionHeight); //left
+        touchScreens[3]._init(3, d, projectionDepth, projectionHeight); //right
+        touchScreens[4]._init(4, d, projectionWidth, projectionDepth); //top
+        touchScreens[5]._init(5, d, projectionWidth, projectionDepth); //bottom
+        touchScreens[6]._init(6, d, 0f, 0f);
+        touchScreens[7]._init(7, d, 0f, 0f);
     }
 
 
@@ -107,22 +138,23 @@ namespace hypercube
             if (debug)
                 Debug.Log("touchScreenInputMgr: "+ data);
 
-            if (serial.readDataAsString)
-            {
-                if (data.StartsWith("firmwareVersion::"))
-                {
-                    string[] toks = data.Split("::".ToCharArray());
-                    firmwareVersion = dataFileDict.stringToFloat(toks[1], firmwareVersion);
-                }
+            //this is now handled by the port finder
+            //if (serial.readDataAsString)
+            //{
+            //    if (data.StartsWith("firmwareVersion::"))
+            //    {
+            //        string[] toks = data.Split("::".ToCharArray());
+            //        firmwareVersion = dataFileDict.stringToFloat(toks[1], firmwareVersion);
+            //    }
 
-                if (data == "init::done" || data.Contains("init::done"))
-                {
-                    serial.readDataAsString = false; //start capturing data
-                    Debug.Log("Touch Screen(s) is ready and initialized.");
-                }
+            //    if (data == "init::done" || data.Contains("init::done"))
+            //    {
+            //        serial.readDataAsString = false; //start capturing data
+            //        Debug.Log("Touch Screen(s) is ready and initialized.");
+            //    }
 
-                return; //still initializing
-            }
+            //    return; //still initializing
+            //}
             
 
             addData(System.Text.Encoding.Unicode.GetBytes(data));
@@ -130,7 +162,11 @@ namespace hypercube
             data = serial.ReadSerialMessage();
         }
 
-        postProcessData();
+        for (int t = 0; t < touchScreens.Length; t++)
+        {
+            if (touchScreens[t].active)
+                touchScreens[t].postProcessData();
+        }
 
 #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
         //this will tell the chip to give us an init, even if it isn't mechanically resetting (just in case, for example on osx which does not mechanically reset the chip on connection)
@@ -167,48 +203,35 @@ namespace hypercube
         return;
 
         //assume no one is touched.
-        //for (int i = 0; i < touchPoolSize; i++)
-        //{
-        //    interfaces[i].active = false;
-        //}     
-
+        //this code assumes that touches for all touch screens are sent together during every frame (not a Unity frame, but a hardware frame).
+        //as opposed to touch panel A sends something frame 1, then panel B sends it's own thing the next frame.  This will not work.
+        for (int t = 0; t < touchScreens.Length; t++)
+        {
+            if (touchScreens[t].active)
+                touchScreens[t].prepareNextFrame();
+        }
 
         rawTouchData d = new rawTouchData();
 
         for (int i = 2; i < dataChunk.Length; i = i + 5) //start at 1 and jump 5 each time.
         {
-                d.id = dataChunk[i];
-                d.o = (touchScreenOrientation) touchScreenId;
-                d.iX = System.BitConverter.ToUInt16(dataChunk, i + 1);
-                d.iY = System.BitConverter.ToUInt16(dataChunk, i + 3);
-                d.x = (float)d.iX;
-                d.y = (float)d.iY;
+            d.id = dataChunk[i];
+            d.o = (touchScreenOrientation) touchScreenId;
+            d.iX = System.BitConverter.ToUInt16(dataChunk, i + 1);
+            d.iY = System.BitConverter.ToUInt16(dataChunk, i + 3);
+            d.x = (float)d.iX;
+            d.y = (float)d.iY;
 
-
-                //TODO   INJECT INTO THE TOUCHSCREEN'S  public void _interface(rawTouchData d)
-
-            }
-
+            touchScreens[touchScreenId]._interface(d);
         }
+
+    }
 
 
 
 #endif
 
-     static float angleBetweenPoints(Vector2 v1, Vector2 v2)
-    {      
-        return Mathf.Atan2(v1.x - v2.x, v1.y - v2.y) * Mathf.Rad2Deg;
-    }
 
-     public static void mapToRange(float x, float y, float top, float right, float bottom, float left, out float outX, out float outY)
-     {
-         outX = map(x, left, right, 0f, 1.0f);
-         outY = map(y, bottom, top, 0f, 1.0f);
-     }
-     static float map(float s, float a1, float a2, float b1, float b2)
-     {
-         return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
-     }
 
 }
 

@@ -54,11 +54,7 @@ public class SerialController : MonoBehaviour
         }
     }
 
-    public bool isConnected
-    {
-        get;
-        private set;
-    }
+    public bool isConnected  {get; private set;}
 
     int failures = 0;
 

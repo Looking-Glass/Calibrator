@@ -16,8 +16,8 @@ public class inputTest : MonoBehaviour
 
         for (uint i = 0; i < fingerItems.Length; i++)
         {
-            if (i < hypercube.input.touchPanel.touches.Length)
-                fingerItems[i].position = hypercube.input.touchPanel.touches[i].getWorldPos(cam);
+            if (i < hypercube.input.touchPanel[0].touches.Length)
+                fingerItems[i].position = hypercube.input.touchPanel[0].touches[i].getWorldPos(cam);
             else
                 fingerItems[i].position = new Vector3(50f, 50f, 50f); //not used atm, just put them aside.
         }

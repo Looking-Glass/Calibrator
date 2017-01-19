@@ -15,6 +15,7 @@ namespace hypercube
         //current touches, updated every frame
         public touch[] touches {get; private set;}
         public uint touchCount {get; private set;}
+        public bool active {get; private set;} //inactive touchScreen simply means it is skipped over in all iteration cycles
 
 
         //external interface..
@@ -32,9 +33,6 @@ namespace hypercube
         //these variables map the raw touches into coherent positional data that is consistent across devices.
         float screenResX = 800f; //these are not public because the touchscreen res can vary from device to device.  We abstract this for the dev as 0-1.
         float screenResY = 450f;
-        float projectionWidth = 20f; //the physical size of the projection, in centimeters
-        float projectionHeight = 12f;
-        float projectionDepth = 20f;
         float touchScreenWidth = 20f; // physical size of the touchscreen, in centimeters
         float touchScreenHeight = 12f;
         float topLimit = 0f;
@@ -42,7 +40,7 @@ namespace hypercube
         float leftLimit = 0f;
         float rightLimit = 1f;
 
-        touchScreen(touchScreenOrientation _orientation)
+        public touchScreen(touchScreenOrientation _orientation)
         {
             touches = new touch[0];
             touchCount = 0;
@@ -50,6 +48,7 @@ namespace hypercube
             twist = 0f;
             screenOrientation = _orientation;
 
+            active = false; //the first input causes it to activate.  
 
             for (int i = 0; i < touchPool.Length; i++)
             {
@@ -58,6 +57,7 @@ namespace hypercube
             for (int i = 0; i < interfaces.Length; i++)
             {
                 interfaces[i] = new touchInterface();
+                interfaces[i].orientation = _orientation;
             }
             for (int i = 0; i < touchIdMap.Length; i++)
             {
@@ -96,9 +96,9 @@ namespace hypercube
         public Vector3 getAverageTouchLocalPos()
         {
             if (screenOrientation == touchScreenOrientation.FRONT_TOUCHSCREEN)
-                return new Vector3(averagePos.x + .5f, averagePos.y + .5f, -.5f); //front touch screen
+                return new Vector3(averagePos.x + .5f, averagePos.y + .5f, -.5f); 
             else if (screenOrientation == touchScreenOrientation.BACK_TOUCHSCREEN)
-                return new Vector3((1f - averagePos.x) + .5f, averagePos.y + .5f, .5f);  //back touch screen
+                return new Vector3((1f - averagePos.x) + .5f, averagePos.y + .5f, .5f);  
             else
             {
                 Debug.LogError("implement this!!!"); //TODO
@@ -109,15 +109,38 @@ namespace hypercube
 
         public void prepareNextFrame()
         {
+            if (!active)
+                return;
+
             for (int i = 0; i < touchPoolSize; i++)
             {
                 interfaces[i].active = false;
             }
         }
 
+        public void _init(int index, dataFileDict d, float projectionWidth, float projectionHeight)
+        {
+            if (index != (int)screenOrientation)
+                Debug.LogError("Something went wrong with the touch screen initialization. How can these not match?");
+
+            screenResX = d.getValueAsFloat("touchScreenResX_" + index, screenResX);
+            screenResY = d.getValueAsFloat("touchScreenResY_" + index, screenResY);
+            topLimit = d.getValueAsFloat("touchScreenMapTop_" + index, topLimit); //use averages.
+            bottomLimit = d.getValueAsFloat("touchScreenMapBottom_" + index, bottomLimit);
+            leftLimit = d.getValueAsFloat("touchScreenMapLeft_" + index, leftLimit);
+            rightLimit = d.getValueAsFloat("touchScreenMapRight_" + index, rightLimit);
+
+            touchScreenWidth = projectionWidth * (1f / (rightLimit - leftLimit));
+            touchScreenHeight = projectionHeight * (1f / (topLimit - bottomLimit));
+
+        }
+
         //this is the method through which the touchScreenInputManager injects data into the touchScreen object
         public void _interface(rawTouchData d)
         {
+            if (!active)
+                active = true; //if we get touch events, automatically activate this touch screen. (it obviously exists on this device)
+
             //sometimes the hardware sends us funky data.
             //if the stats are funky, throw it out.
             if (d.id == 0 || d.id >= maxTouches)
@@ -139,35 +162,38 @@ namespace hypercube
                         touchIdMap[k] = 0; //point it to our always defunct element.  Without this, we can cause our touchCount to be incorrect.
                 }
 
-                touchIdMap[id] = touchPoolItr; //point the id to the current iterator 
+                touchIdMap[d.id] = touchPoolItr; //point the id to the current iterator 
 
                 currentTouchID++;
-                interfaces[touchIdMap[id]]._id = currentTouchID; //this id, is purely for external convenience and does not affect our functions here.
+                interfaces[touchIdMap[d.id]]._id = currentTouchID; //this id, is purely for external convenience and does not affect our functions here.
 
                 touchPoolItr++;
                 if (touchPoolItr >= touchPoolSize)
                     touchPoolItr = 1;  //we rely on element 0 always being inactive so we can use it to fix any duplicates.
             }
 
-            interfaces[touchIdMap[id]].active = true;
+            interfaces[touchIdMap[d.id]].active = true;
 
-            interfaces[touchIdMap[id]].rawTouchScreenX = (int)iX;
-            interfaces[touchIdMap[id]].rawTouchScreenY = (int)iY;
+            interfaces[touchIdMap[d.id]].rawTouchScreenX = (int)d.iX;
+            interfaces[touchIdMap[d.id]].rawTouchScreenY = (int)d.iY;
 
-            interfaces[touchIdMap[id]].orientation = (touchScreenOrientation)touchScreenId;
+            //interfaces[touchIdMap[d.id]].orientation = d.o; //already set.
 
             //set the normalized x/y to the touchscreen limits
-            mapToRange(x / screenResX, y / screenResY, topLimit, rightLimit, bottomLimit, leftLimit,
-            out interfaces[touchIdMap[id]].normalizedPos.x, out interfaces[touchIdMap[id]].normalizedPos.y);
+            mapToRange(d.x / screenResX, d.y / screenResY, topLimit, rightLimit, bottomLimit, leftLimit,
+            out interfaces[touchIdMap[d.id]].normalizedPos.x, out interfaces[touchIdMap[d.id]].normalizedPos.y);
 
-            interfaces[touchIdMap[id]].physicalPos.x = (x / screenResX) * touchScreenWidth;
-            interfaces[touchIdMap[id]].physicalPos.y = (y / screenResY) * touchScreenHeight;
+            interfaces[touchIdMap[d.id]].physicalPos.x = (d.x / screenResX) * touchScreenWidth;
+            interfaces[touchIdMap[d.id]].physicalPos.y = (d.y / screenResY) * touchScreenHeight;
         }
 
 
 
-        void postProcessData()
+        public void postProcessData()
         {
+            if (!active)
+                return;
+
             touchCount = 0;
             for (int k = 0; k < maxTouches; k++)
             {
@@ -301,6 +327,21 @@ namespace hypercube
             }
         }
 
+
+        static float angleBetweenPoints(Vector2 v1, Vector2 v2)
+        {
+            return Mathf.Atan2(v1.x - v2.x, v1.y - v2.y) * Mathf.Rad2Deg;
+        }
+
+        public static void mapToRange(float x, float y, float top, float right, float bottom, float left, out float outX, out float outY)
+        {
+            outX = map(x, left, right, 0f, 1.0f);
+            outY = map(y, bottom, top, 0f, 1.0f);
+        }
+        static float map(float s, float a1, float a2, float b1, float b2)
+        {
+            return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
+        }
 
     }
 }

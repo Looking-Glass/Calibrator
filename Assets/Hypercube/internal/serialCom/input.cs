@@ -32,10 +32,8 @@ namespace hypercube
         public int maxAllowedFailure = 3;
         public bool debug = false;
 
-        public static touchScreenInputManager touchPanel
-        {
-            get; private set;
-        }  
+        public static touchScreenInputManager touchPanel { get; private set;}  
+        serialPortFinder[] portSearches; //we wait for a handshake to know which serial port is which.
 
         //these keep track of all touchScreen targets, and hence the in input system can send them user input data as it is received.
         static HashSet<touchScreenTarget> eventTargets = new HashSet<touchScreenTarget>();
@@ -103,7 +101,7 @@ namespace hypercube
 
         void setupSerialComs()
         {
-            string frontComName = "";
+
             string[] names = getPortNames();
 
             if (names.Length == 0)
@@ -112,25 +110,50 @@ namespace hypercube
                 return;
             }
 
-            for (int i = 0; i < names.Length; i++)
+            portSearches = new serialPortFinder[names.Length];
+            for (int i = 0; i < portSearches.Length; i++)
             {
-                if (names[i].StartsWith("COM") || names[i].Contains("LKGTP"))
+                portSearches[i] = new serialPortFinder();
+                portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
+            } 
+        }
+
+        //we haven't found all of our ports, keep trying.
+        void searchSearialComUpdate(float deltaTime)
+        {
+            for (int i = 0; i < portSearches.Length; i++)
+            {
+                if (portSearches[i] == null)
+                    continue;
+
+                serialPortType t = portSearches[i].update(deltaTime);
+                if (t == serialPortType.SERIAL_UNKNOWN) //a timeout or some other problem.  This is likely not a port related to us.
                 {
-                    frontComName = names[i];
+                    GameObject.Destroy(portSearches[i].getSerialInput());
+                    portSearches[i] = null;
+                }
+                else if (t == serialPortType.SERIAL_TOUCHPANEL)
+                {
+                    touchPanel = new touchScreenInputManager(portSearches[i].getSerialInput()); //we found the touch panel. Hand off the serialInput component to it's proper, custom handler
+                    portSearches[i] = null; //stop checking this port for relevance.
+                }
+                else if (t == serialPortType.SERIAL_WORKING)
+                {
+                    //do nothing
                 }
             }
-
-            if (touchPanel == null && frontComName != "")
-                touchPanel = new touchScreenInputManager("Front Touch Screen", createInputSerialPort(frontComName));
         }
 
 
         void Update()
         {
-            if (touchPanel != null && touchPanel.serial.enabled)
+            if (touchPanel == null)
+            {
+                searchSearialComUpdate(Time.deltaTime);
+                return;
+            }
+            else if (touchPanel.serial.enabled)
                 touchPanel.update(debug);
-            if (backScreen != null && backScreen.serial.enabled)
-                backScreen.update(debug);
         }
 
         public static string[] getPortNames()
@@ -243,7 +266,7 @@ namespace hypercube
         }
 #endif
 
-    }
+        }
 
 
 }

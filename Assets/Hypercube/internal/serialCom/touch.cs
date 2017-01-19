@@ -192,7 +192,7 @@ namespace hypercube
         {
             float outX;
             float outY;
-            touchScreenInputManager.mapToRange(_posX, _posY, top, right, bottom, left, out outX, out outY);
+            hypercube.touchScreen.mapToRange(_posX, _posY, top, right, bottom, left, out outX, out outY);
             return new Vector2(outX, outY);
         }
 
