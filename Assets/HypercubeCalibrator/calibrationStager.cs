@@ -38,20 +38,16 @@ namespace hypercube
         {
 
             //don't progress without the usb...
-            if (stage == 0)
-            {
-                if (canvas.hasValidatedConfig)
-                    nextStage();
-                else
-                {
-                    checkUSBtimer += Time.deltaTime;
-                    if (checkUSBtimer > 2f) //check every 2 seconds
-                    {
-                        canvas.loadSettingsFromUSB();
-                        checkUSBtimer = 0;
-                    }
-                }
-            }
+            //if (stage == 0)
+            //{
+                
+            //    checkUSBtimer += Time.deltaTime;
+            //    if (checkUSBtimer > 2f) //check every 2 seconds
+            //    {
+            //        canvas.loadSettingsFromUSB();
+            //        checkUSBtimer = 0;
+            //    }
+            //}
 
             //normal path...
 

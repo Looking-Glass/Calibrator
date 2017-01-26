@@ -3,6 +3,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+
+//the main Hypercube input class, use this to access all physical input from Volume
+//note that Volume also stores its calibration inside the touchscreen circuit board.  This calibration is also read by this class and sent to the castMesh.
+
+//regarding the i/o of calibration data into the touchscreen pcb, it is stored on the board in 3 areas:
+//area 0 = the basic config data. stored in text form native to the dataFileDict class.  This is < 1k of data containg things such as projector resolution, touch screen resolution, does this hardware use an fpga, etc.
+//area 1 = the unsullied slices.  < 1k of calibration data that conforms to an ideal perfect undistorted format if the projector could perfectly project onto slices without perspective or distortion of any kind.
+//area 2 = the sullied slices. About 50k of data. This is a calibrated output of the slices in vertex positions.  These are typically cut up into 33 x 9 vertices of articulation per slice.
+
 namespace hypercube
 {
     public class input : MonoBehaviour
@@ -23,7 +32,7 @@ namespace hypercube
 
             touchPanel = null;
 
-            setupSerialComs();
+            searchForSerialComs();
         }
 
         public int baudRate = 57600;
@@ -45,10 +54,6 @@ namespace hypercube
                 eventTargets.Remove(t);
         }
 
-        public static string calibrationData //if the hardware contains any calibration, it will be stored here.
-        {
-            get; private set;
-        }
 
         //use this instead of Start(),  that way we know we have our hardware settings info ready before we begin receiving data
         public static void init(dataFileDict d)
@@ -99,9 +104,8 @@ namespace hypercube
             }
         }
 
-        void setupSerialComs()
+        void searchForSerialComs()
         {
-
             string[] names = getPortNames();
 
             if (names.Length == 0)
@@ -134,8 +138,10 @@ namespace hypercube
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
                 {
-                    touchPanel = new touchScreenInputManager(portSearches[i].getSerialInput()); //we found the touch panel. Hand off the serialInput component to it's proper, custom handler
+                    touchPanel = new touchScreenInputManager(portSearches[i].getSerialInput(), portSearches[i].firmwareVersion); //we found the touch panel. Hand off the serialInput component to it's proper, custom handler
                     portSearches[i] = null; //stop checking this port for relevance.
+                    touchPanel.serial.readDataAsString = true;
+                    touchPanel.serial.SendSerialMessage("read0"); //send for the config asap. 
                 }
                 else if (t == serialPortType.SERIAL_WORKING)
                 {
@@ -182,8 +188,6 @@ namespace hypercube
 
 
 
-
-
         SerialController createInputSerialPort(string comName)
         {
             SerialController sc = gameObject.AddComponent<SerialController>();
@@ -196,17 +200,6 @@ namespace hypercube
             return sc;
         }
 
-        static castMesh[] getCastMeshes()
-        {
-            List<castMesh> outcams = new List<castMesh>();
-
-            castMesh[] cameras = GameObject.FindObjectsOfType<castMesh>();
-            foreach (castMesh ca in cameras)
-            {
-                outcams.Add(ca);
-            }
-            return outcams.ToArray();
-        }
 
         public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
         {
@@ -224,23 +217,22 @@ namespace hypercube
             return false;
         }
 
-        /*      public static bool sendCommandToHardware(string cmd)
-              {
-                  if (isHardwareReady())
-                  {
-                      touchScreenFront.serial.SendSerialMessage(cmd + "\n\r");
-                      return true;
-                  }
-                  else
-                      Debug.LogWarning("Can't send message to hardware, it is either not yet initialized, disconnected, or malfunctioning.");
+        //static bool sendCommandToHardware(string cmd)
+        //{
+        //    if (isHardwareReady())
+        //    {
+        //        touchPanel.serial.SendSerialMessage(cmd + "\n\r");
+        //        return true;
+        //    }
+        //    else
+        //        Debug.LogWarning("Can't send message to hardware, it is either not yet initialized, disconnected, or malfunctioning.");
 
-                  return false;
-              }
-      */
+        //    return false;
+        //}
 
 #else //We use HYPERCUBE_INPUT because I have to choose between this odd warning below, or immediately throwing a compile error for new users who happen to have the wrong settings (IO.Ports is not included in .Net 2.0 Subset).  This solution is odd, but much better than immediately failing to compile.
     
-        void setupSerialComs()
+        void searchForSerialComs()
         {
 
         }

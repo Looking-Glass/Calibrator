@@ -36,7 +36,7 @@ namespace hypercube
 public class touchScreenInputManager  : streamedInputManager
 {
 
-    public float firmwareVersion { get; private set; }
+    public readonly float firmwareVersion;
 
     float projectionWidth = 20f; //the physical size of the projection, in centimeters
     float projectionHeight = 12f;
@@ -97,8 +97,8 @@ public class touchScreenInputManager  : streamedInputManager
         {
             touchScreens[t] = new touchScreen((touchScreenOrientation)t);
         }
-
-        _serial.readDataAsString = true; //start with string info, so we can get config data from the PCB.
+        
+        //note do not set here whether to read string or data from the serial.  Whoever just gave use the serial will know what is best.
     }
 
     public void setTouchScreenDims(dataFileDict d)
@@ -138,26 +138,34 @@ public class touchScreenInputManager  : streamedInputManager
             if (debug)
                 Debug.Log("touchScreenInputMgr: "+ data);
 
-            //this is now handled by the port finder
-            //if (serial.readDataAsString)
-            //{
-            //    if (data.StartsWith("firmwareVersion::"))
-            //    {
-            //        string[] toks = data.Split("::".ToCharArray());
-            //        firmwareVersion = dataFileDict.stringToFloat(toks[1], firmwareVersion);
-            //    }
+                //this is now handled by the port finder
+                if (serial.readDataAsString)
+                {
+                    if (data.StartsWith("data0::") && data.EndsWith("::done"))
+                    {
+                        string[] toks = data.Split("::".ToCharArray());
+                        serial.readDataAsString = false; //we got what we want now lets go back
+                        basicConfigData = toks[1];
+                    }
+                    else if (data.StartsWith("data1::") && data.EndsWith("::done"))
+                    {
+                        string[] toks = data.Split("::".ToCharArray());
+                        serial.readDataAsString = false; //we got what we want now lets go back
+                        readSlices(toks[1]);
+                        //in principle we could store here whether the data we have is sullied or perfect, but there are no known cases where the software will need to know both.
+                    }
+                    else if (data.StartsWith("data2::") && data.EndsWith("::done"))
+                    {
+                        string[] toks = data.Split("::".ToCharArray());
+                        serial.readDataAsString = false; //we got what we want now lets go back
+                        readSlices(toks[1]);
+                    }
+                    
+                    return;
+                }
 
-            //    if (data == "init::done" || data.Contains("init::done"))
-            //    {
-            //        serial.readDataAsString = false; //start capturing data
-            //        Debug.Log("Touch Screen(s) is ready and initialized.");
-            //    }
 
-            //    return; //still initializing
-            //}
-            
-
-            addData(System.Text.Encoding.Unicode.GetBytes(data));
+                addData(System.Text.Encoding.Unicode.GetBytes(data));
      
             data = serial.ReadSerialMessage();
         }
@@ -179,7 +187,7 @@ public class touchScreenInputManager  : streamedInputManager
         }
 
 
-        protected override void processData(byte[] dataChunk)
+     protected override void processData(byte[] dataChunk)
     {
         /*  the expected data here is ..
          * 1 byte = total touches
@@ -227,13 +235,120 @@ public class touchScreenInputManager  : streamedInputManager
 
     }
 
+    //code related to i/o of config and calibration data on the pcb
+    #region 
+
+    //the basic settings stored on the PCB
+    string basicConfigData = null;
+    public bool _getConfigData(ref dataFileDict d)
+    {
+        if (basicConfigData == null)
+            return false;
+
+        if (d.loadFromString(basicConfigData))
+            return true;
+
+        return false;
+    }
+
+
+    Vector2[,,] sliceData = null;
+    public bool _applyHardwareCalibration(castMesh c )
+    {
+            if (sliceData == null)
+                return false;
+
+            c.setCalibration(sliceData);
+            return true;        
+    }
+
+    bool readSlices(string data)
+    {
+            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(data);
+        
+            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
+            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
+            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
+
+            if (rawBytes.Length % 4 != 0)
+            {
+                Debug.LogWarning("The data received for the unsullied slices is malformed.");
+                return false;
+            }
+
+            int count = rawBytes.Length / 4;
+            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
+            {
+                Debug.LogWarning("The data received for the unsullied slices does not match the expected array length.");
+                return false;
+            }
+
+            sliceData = new Vector2[sliceCount, xArticulation, yArticulation];
+
+            for (int s = 0; s < sliceCount; s++)
+            {
+                for (int y = 0; y < yArticulation; y++)
+                {
+                    for (int x = 0; x < xArticulation; x++)
+                    {
+                        int i = 12;  //start at the end of the header.
+                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+
+                        sliceData[s, x, y] = new Vector2();
+                        sliceData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
+                        sliceData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
+                    }
+                }
+            }
+
+            return true;
+    }
+
+
+
+#if HYPERCUBE_DEV
+    public bool _writeSlices(Vector2[,,] d, bool sullied)
+    {
+        if (serial == null || !serial.isConnected)
+            return false;
+
+        //prepare the pcb to accept our data
+        if (sullied)
+            serial.SendSerialMessage("write2");
+        else
+            serial.SendSerialMessage("write1"); //perfect slices
+
+        List<byte> outData = new List<byte>();
+
+        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(0))); //header
+        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(1)));
+        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(2)));
+
+        for (int s = 0; s < d.GetLength(0); s++)  //data
+        {
+            for (int y = 0; y < d.GetLength(1); y++)
+            {
+                for (int x = 0; x < d.GetLength(2); x++)
+                {
+                    outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].x));
+                    outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].y));
+                }
+            }
+        }
+
+        serial.SendSerialMessage(outData.ToString());
+
+        return true;
+    }
+#endif
+        #endregion
 
 
 #endif
 
 
 
-}
+    }
 
 
 

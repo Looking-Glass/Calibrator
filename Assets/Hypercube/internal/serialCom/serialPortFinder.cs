@@ -20,10 +20,16 @@ namespace hypercube
         public float timeOut = 2f;
         float timer = 0f;
 
-        public float firmwareVersion { get; private set; }
+        public float firmwareVersion
+        {
+            get; private set;
+        }
         bool sentForcedInit = false;
 
-        public SerialController getSerialInput() {return testSubject;}
+        public SerialController getSerialInput()
+        {
+            return testSubject;
+        }
         SerialController testSubject = null;
 
         serialPortType type = serialPortType.SERIAL_UNKNOWN;
@@ -46,7 +52,7 @@ namespace hypercube
 
             if (type != serialPortType.SERIAL_WORKING || !testSubject.readDataAsString)
                 return type;
-       
+
             if (timer > timeOut)
                 return serialPortType.SERIAL_UNKNOWN;
 
@@ -58,7 +64,7 @@ namespace hypercube
             {
 #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
                 
-                testSubject.SendSerialMessage("reping"); 
+                testSubject.SendSerialMessage("reping");  //OSX does not reset the serial port hardware on connect, so we need to get it to tell us again what it is.
 #endif
                 sentForcedInit = true;
             }
@@ -70,19 +76,20 @@ namespace hypercube
                     Debug.Log("serial port finder: " + data);
 
 
-                    if (data.StartsWith("firmwareVersion::"))
-                    {
-                        string[] toks = data.Split("::".ToCharArray());
-                        firmwareVersion = dataFileDict.stringToFloat(toks[2], firmwareVersion);
+                if (data.StartsWith("firmwareVersion::"))
+                {
+                    string[] toks = data.Split("::".ToCharArray());
+                    firmwareVersion = dataFileDict.stringToFloat(toks[2], firmwareVersion);
 
-                        if (toks[1] == "touchPanelsPCB")
-                            type = serialPortType.SERIAL_TOUCHPANEL;
+                    if (toks[1] == "touchPanelsPCB")
+                        type = serialPortType.SERIAL_TOUCHPANEL;
 
-                        //TODO add any other kinds of serial ports that need ID here.
-                    }
+                    //TODO add any other kinds of serial ports that need ID here.
+                }
             }
 
             return type;
+        }
     }
 }
 

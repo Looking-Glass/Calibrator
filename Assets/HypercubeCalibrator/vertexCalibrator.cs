@@ -80,7 +80,7 @@ namespace hypercube
 
             if (castMesh.loadCalibrationData(out slicesX, out slicesY, out articulationX, out articulationY, out vertices, d))
             {
-                resetOriginalVertexOffsets(); //reset just 'virgin' data
+                resetOriginalVertexOffsets(); //reset just 'unsullied' data
             }
             else
             {

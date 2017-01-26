@@ -23,7 +23,9 @@ namespace hypercube
         public Vector3 aspectY { get; private set; }
         public Vector3 aspectZ { get; private set; }
 
-        public bool hasValidatedConfig { get; private set; }
+        private bool hasUSBCalibration = false;
+        private bool hasPCBCalibration = false;
+        private bool hasPCBBasic = false;
 
         public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
         Vector2[,,] calibrationData = null;
@@ -70,37 +72,53 @@ namespace hypercube
 
 #if HYPERCUBE_DEV
         public calibrator currentCalibrator = null;
+#endif
 
         public void setCalibration(Vector2[,,] data)
-        {
+        {        
+            if (data == null)
+            {
+                Debug.LogWarning("Bad calibration sent to castMesh!");
+                return;
+            }
+
             calibrationData = data;
-            if (data != null)
-                hasValidatedConfig = true; //assume that the data is sane.
-            else
-                hasValidatedConfig = false;
             updateMesh();
         }
-#endif
 
         public Material casterMaterial;
 
         [Tooltip("This path is how we find the calibration and system settings in the internal drive for the Volume in use. Don't change unless you know what you are changing.")]
         public string relativeSettingsPath;
 
-        void Awake()
-        {
-            hasValidatedConfig = false;
-#if !UNITY_EDITOR
-            Debug.Log("Loading Hypercube Tools v" + hypercubeCamera.version + " on  Unity v" + Application.unityVersion);
-#endif
-        }
 
         void Start()
         {
+#if !UNITY_EDITOR
+            Debug.Log("Loading Hypercube Tools v" + hypercubeCamera.version + " on  Unity v" + Application.unityVersion);
+#endif
+
             if (!preview)
                 preview = GameObject.FindObjectOfType<hypercubePreview>();
 
-            loadSettingsFromUSB();
+            if (!loadSettingsFromUSB())
+            {
+                hasUSBCalibration = false;
+
+                hasPCBBasic = false;
+                hasPCBCalibration = false;
+
+#if !HYPERCUBE_INPUT
+                
+#if UNITY_EDITOR               
+            Debug.LogWarning("HYPERCUBE: Can't load settings. Please run: Hypercube > Load Volume Friendly Unity Prefs to allow Hypercube to read settings off the Volume USB.");
+#else
+            //TODO show only an interactive preview?
+            Debug.LogWarning("No calibration found on USB drive, (and PCB read is not allowed due to preprocessor settings!)");
+#endif
+#endif
+                //poll, and try to use the settings on the PCB once they come in.
+            }
         }
 
         public void setCustomWidthHeight(float w, float h)
@@ -120,41 +138,41 @@ namespace hypercube
             dataFileDict d = GetComponent<dataFileDict>();
                      
             //use this path as a base path to search for the drive provided with Volume.
-            hasValidatedConfig = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
+            hasUSBCalibration = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
 
             d.clear();
 
 
             if (d.load())
             {
-                #if UNITY_EDITOR
+#if UNITY_EDITOR
                 UnityEditor.Undo.RecordObject(this, "Loaded calibration settings from file."); //these force the editor to mark the canvas as dirty and save what is loaded.
-                #endif
-                hasValidatedConfig = true;
+#endif
+                hasUSBCalibration = true;
                 applyLoadedSettings(d);
             }
             else //we failed to load the file!  ...use backup defaults.
             {
                 Debug.LogWarning("Could not read calibration data from Volume!\nIs Volume connected via USB? Using defaults..."); //This will never be as good as using the config stored with the hardware and the view will have distortions in Volume's display.
-                hasValidatedConfig = false;
+                hasUSBCalibration = false;
             }
                 
-            return hasValidatedConfig;
+            return hasUSBCalibration;
         }
 
 
-        void applyLoadedSettings(dataFileDict d)
+        bool applyLoadedSettings(dataFileDict d)
         {             
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
             //if our calibration is bad, act as if we have none, by keeping hasValidatedConfig = fase
-            hasValidatedConfig = loadCalibrationData(out calibrationData, d);
+            if (loadCalibrationData(out calibrationData, d))
+                return false;
 
             Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
   
-            if (hasValidatedConfig)
-                updateMesh();       
+            updateMesh();       
   
             //setup input to take into account touchscreen hardware config
             input.init(d);
@@ -171,6 +189,8 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessR", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
+
+            return true;
         }
 
         public static bool loadCalibrationData (out Vector2[,,] _vertData, dataFileDict d)
@@ -228,9 +248,9 @@ namespace hypercube
         }
 
 		//requires the physical dimensions of the projection, in Centimeters. Should not be public except for use by calibration tools or similar. 
-		#if HYPERCUBE_DEV
+#if HYPERCUBE_DEV
 		public 
-		#endif
+#endif
 		void setProjectionAspectRatios(float xCm, float yCm, float zCm) 
 		{
             if (xCm == 0f) //sanity check
@@ -261,7 +281,6 @@ namespace hypercube
 
         void OnValidate()
         {
-
             if (!sliceMesh)
                 return;
 
@@ -278,6 +297,29 @@ namespace hypercube
 
         void Update()
         {
+            if (!hasPCBCalibration && !hasUSBCalibration)
+            {
+                if (!hasPCBBasic && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it.
+                {
+                    dataFileDict d = GetComponent<dataFileDict>();
+                    if (input.touchPanel._getConfigData(ref d))
+                    {
+                        if (applyLoadedSettings(d))
+                        {
+                            hasPCBBasic = true;
+                            if (d.getValueAsBool("useFPGA", false))
+                                input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
+                            else
+                                input.touchPanel.serial.SendSerialMessage("read2"); //ask for calibrated slices (much larger)
+                        }
+                    }                      
+                }
+                else if (hasPCBBasic && input.touchPanel._applyHardwareCalibration(this))
+                {
+                    hasPCBCalibration = true;
+                }                  
+            }
+
             if (transform.hasChanged)
             {
                 resetTransform();
@@ -364,12 +406,11 @@ namespace hypercube
 
             if (canvasMaterials.Count == 0)
             {
+
+                //TODO this should be dynamic... filling in any gaps with the default material, connected to the default texture
                 Debug.LogError("Canvas materials have not been set!  Please define what materials you want to apply to each slice in the hypercubeCanvas component.");
                 return;
             }
-
-            if (!hasValidatedConfig)
-                return;
 
 
             if (getSliceCount() > canvasMaterials.Count)
