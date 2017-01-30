@@ -175,16 +175,8 @@ public class touchScreenInputManager  : streamedInputManager
             if (touchScreens[t].active)
                 touchScreens[t].postProcessData();
         }
-
-#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
-        //this will tell the chip to give us an init, even if it isn't mechanically resetting (just in case, for example on osx which does not mechanically reset the chip on connection)
-        if (!hasInit && serial.isConnected) //will run the first time we have connection.
-        {
-            serial.SendSerialMessage("reping"); 
-            hasInit = true;
-        }
-#endif
-        }
+                
+   }
 
 
      protected override void processData(byte[] dataChunk)
@@ -262,62 +254,13 @@ public class touchScreenInputManager  : streamedInputManager
             return true;        
     }
 
-    bool readSlices(string data)
-    {
-            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(data);
-        
-            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
-            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
-            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
-
-            if (rawBytes.Length % 4 != 0)
-            {
-                Debug.LogWarning("The data received for the unsullied slices is malformed.");
-                return false;
-            }
-
-            int count = rawBytes.Length / 4;
-            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
-            {
-                Debug.LogWarning("The data received for the unsullied slices does not match the expected array length.");
-                return false;
-            }
-
-            sliceData = new Vector2[sliceCount, xArticulation, yArticulation];
-
-            for (int s = 0; s < sliceCount; s++)
-            {
-                for (int y = 0; y < yArticulation; y++)
-                {
-                    for (int x = 0; x < xArticulation; x++)
-                    {
-                        int i = 12;  //start at the end of the header.
-                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
-
-                        sliceData[s, x, y] = new Vector2();
-                        sliceData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
-                        sliceData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
-                    }
-                }
-            }
-
-            return true;
-    }
-
+       
 
 
 #if HYPERCUBE_DEV
-    public bool _writeSlices(Vector2[,,] d, bool sullied)
+
+     public static byte[] _convertCalibrationToData(Vector2[,,] d)
     {
-        if (serial == null || !serial.isConnected)
-            return false;
-
-        //prepare the pcb to accept our data
-        if (sullied)
-            serial.SendSerialMessage("write2");
-        else
-            serial.SendSerialMessage("write1"); //perfect slices
-
         List<byte> outData = new List<byte>();
 
         outData.AddRange(System.BitConverter.GetBytes(d.GetLength(0))); //header
@@ -335,8 +278,21 @@ public class touchScreenInputManager  : streamedInputManager
                 }
             }
         }
+        return outData.ToArray();
+    }
 
-        serial.SendSerialMessage(outData.ToString());
+    public bool _writeSlices(Vector2[,,] d, bool sullied)
+    {
+        if (serial == null || !serial.isConnected)
+            return false;
+
+        //prepare the pcb to accept our data
+        if (sullied)
+            serial.SendSerialMessage("write2");
+        else
+            serial.SendSerialMessage("write1"); //perfect slices
+
+         serial.SendSerialMessage(_convertCalibrationToData(d).ToString());
 
         return true;
     }

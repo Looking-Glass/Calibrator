@@ -135,7 +135,9 @@ public class SerialController : MonoBehaviour
 
         if (ReferenceEquals(data, SerialController.SERIAL_DEVICE_CONNECTED))
         {
+#if HYPERCUBE_DEV
             Debug.Log("Connection established to " + portName);
+#endif
             failures = 0;
             isConnected = true;
             return null; 
@@ -146,7 +148,9 @@ public class SerialController : MonoBehaviour
             failures++;
             if (maxFailuresAllowed > 0 && failures >= maxFailuresAllowed) //shut ourselves down
                 enabled = false;
-            Debug.LogWarning("Connection attempt to Serial failed or disconnection occured on '" + portName + "'. Attempting reconnection");
+#if HYPERCUBE_DEV
+            Debug.LogWarning("Connection attempt to Serial failed or disconnection occured on '" + portName + "'.");
+#endif
             return null;
         }
     

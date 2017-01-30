@@ -23,13 +23,13 @@ namespace hypercube
 
         public bool allowNextStage = true; //can be used to block progress if settings are bad
 
-        
-       // public GameObject infoScreen;
-
-        float checkUSBtimer = 0f;
 
         void Start()
         {
+
+
+
+
             stage = 0;
             resetStage();
         }

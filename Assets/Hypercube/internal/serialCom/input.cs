@@ -106,6 +106,7 @@ namespace hypercube
 
         void searchForSerialComs()
         {
+            serialComSearchTime = 0f;
             string[] names = getPortNames();
 
             if (names.Length == 0)
@@ -122,9 +123,24 @@ namespace hypercube
             } 
         }
 
-        //we haven't found all of our ports, keep trying.
-        void searchSearialComUpdate(float deltaTime)
+
+        void Update()
         {
+            if (touchPanel == null)
+            {
+                findSearialComUpdate(Time.deltaTime);
+                return;
+            }
+            else if (touchPanel.serial.enabled)
+                touchPanel.update(debug);
+        }
+
+
+        //we haven't found all of our ports, keep trying.
+        private float serialComSearchTime = 0f;
+        void findSearialComUpdate(float deltaTime)
+        {
+            serialComSearchTime += deltaTime;
             for (int i = 0; i < portSearches.Length; i++)
             {
                 if (portSearches[i] == null)
@@ -142,24 +158,31 @@ namespace hypercube
                     portSearches[i] = null; //stop checking this port for relevance.
                     touchPanel.serial.readDataAsString = true;
                     touchPanel.serial.SendSerialMessage("read0"); //send for the config asap. 
+                    endPortSearch(); //this version of the tools only knows how to use touchpanel serial port. we are done.
                 }
                 else if (t == serialPortType.SERIAL_WORKING)
                 {
+                    if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().isConnected) //timeout
+                    {
+                        Destroy(portSearches[i].getSerialInput());
+                        portSearches[i] = null; //stop bothering with this guy.
+                    }
                     //do nothing
                 }
             }
         }
 
 
-        void Update()
+        void endPortSearch()
         {
-            if (touchPanel == null)
+            for (int i = 0; i < portSearches.Length; i++)
             {
-                searchSearialComUpdate(Time.deltaTime);
-                return;
+                if (portSearches[i] != null)
+                {
+                    GameObject.Destroy(portSearches[i].getSerialInput());
+                    portSearches[i] = null;
+                }
             }
-            else if (touchPanel.serial.enabled)
-                touchPanel.update(debug);
         }
 
         public static string[] getPortNames()

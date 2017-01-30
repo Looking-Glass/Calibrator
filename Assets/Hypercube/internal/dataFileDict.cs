@@ -190,7 +190,7 @@ public class dataFileDict : MonoBehaviour {
                 return false;
             }
         }
-        Debug.Log("The data file: " + fileName + " does not exist, and therefore could not be read.");
+    //    Debug.Log("The data file: " + fileName + " does not exist, and therefore could not be read.");
         return false;
     }
 

@@ -15,6 +15,11 @@ namespace hypercube
     {
         public Shader sullyColorShader;
 
+        public readonly string usbConfigPath = "volumeCalibrationData";
+        public readonly string basicSettingsFileName = "settings_basic.txt";
+        public readonly string perfectSlicesFileName = "settings_perfectSlices.txt";
+        public readonly string calibratedSlicesFileName = "settings_calibratedSlices.txt";
+
         public string volumeModelName { get; private set; }
         public float volumeHardwareVer { get; private set; }
 
@@ -88,9 +93,6 @@ namespace hypercube
 
         public Material casterMaterial;
 
-        [Tooltip("This path is how we find the calibration and system settings in the internal drive for the Volume in use. Don't change unless you know what you are changing.")]
-        public string relativeSettingsPath;
-
 
         void Start()
         {
@@ -135,25 +137,45 @@ namespace hypercube
 
         public bool loadSettingsFromUSB()
         {
+            hasUSBCalibration = false;
+
             dataFileDict d = GetComponent<dataFileDict>();
-                     
-            //use this path as a base path to search for the drive provided with Volume.
-            hasUSBCalibration = hypercube.utils.getConfigPath(relativeSettingsPath, out d.fileName);    //return it to the dataFileDict as an absolute path within that drive if we find it  (ie   G:/volumeConfigurationData/prefs.txt).
 
             d.clear();
-
-
-            if (d.load())
+           
+            if (hypercube.utils.getConfigPath(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
             {
-#if UNITY_EDITOR
-                UnityEditor.Undo.RecordObject(this, "Loaded calibration settings from file."); //these force the editor to mark the canvas as dirty and save what is loaded.
-#endif
-                hasUSBCalibration = true;
-                applyLoadedSettings(d);
+
+                string calibrationFile = "";
+                if (d.getValueAsBool("FPGA", false))
+                {
+                    if (hypercube.utils.getConfigPath(usbConfigPath + "/" + perfectSlicesFileName, out calibrationFile))
+                        hasUSBCalibration = true;
+                }
+                else
+                {
+                    calibrationFile = calibratedSlicesFileName;
+                    if (hypercube.utils.getConfigPath(usbConfigPath + "/" + calibratedSlicesFileName, out calibrationFile))
+                        hasUSBCalibration = true;
+                }
+                    
+                if (hasUSBCalibration)
+                {
+                    #if UNITY_EDITOR
+                    UnityEditor.Undo.RecordObject(this, "Loading settings from usb file."); //these force the editor to mark the canvas as dirty and save what is loaded.
+                    #endif
+                    applyLoadedSettings(d);
+
+                    //TODO apply the usb calibration
+                    Vector2[,,] v ;
+                    byte[] fileContents = System.IO.File.ReadAllBytes(calibrationFile);
+                    castMesh.getVerticesFromBinary(fileContents, out v);
+                    setCalibration(v);
+                }
             }
-            else //we failed to load the file!  ...use backup defaults.
+            else 
             {
-                Debug.LogWarning("Could not read calibration data from Volume!\nIs Volume connected via USB? Using defaults..."); //This will never be as good as using the config stored with the hardware and the view will have distortions in Volume's display.
+                //we failed to load the file!  ...the calling method will try the PCB now
                 hasUSBCalibration = false;
             }
                 
@@ -166,8 +188,8 @@ namespace hypercube
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
-            //if our calibration is bad, act as if we have none, by keeping hasValidatedConfig = fase
-            if (loadCalibrationData(out calibrationData, d))
+
+            if (!loadCalibrationData(out calibrationData, d))
                 return false;
 
             Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
@@ -207,16 +229,15 @@ namespace hypercube
             _slicesY = d.getValueAsInt("slicesY", 10);
             _articulationX = d.getValueAsInt("articulationX", 33);
             _articulationY = d.getValueAsInt("articulationY", 17);
-
-            //try to use existing calibration
-            string vertStr = d.getValue("calibration");
-            if (vertStr == "")
-                return false; //we have no calibration data
+        
 
             if (_slicesX < 1 || _slicesY < 1)
                 return false;
 
             int sliceCount = _slicesX * _slicesY;
+
+
+            //TODO get the vert calibration out of the file
 
             string[] floatDataStr = vertStr.Split(',');
             if (floatDataStr.Length != _articulationX * _articulationY * sliceCount * 2) //the 2 accounts for both x,y values
@@ -597,6 +618,56 @@ namespace hypercube
 
             // testMaterial.SetTexture("_MainTex", xTex);  //test
             // testMaterial2.SetTexture("_MainTex", yTex);
+        }
+
+
+        //converts stored binary calibration data into a proper array for the castMesh
+        public static bool getVerticesFromBinary(string inBinaryData, out Vector2[,,] outData)
+        {
+            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData);
+            return getVerticesFromBinary(rawBytes, out outData);
+        }
+        public static bool getVerticesFromBinary(byte[] rawBytes, out Vector2[,,] outData)
+        {
+            
+            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
+            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
+            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
+
+            if (rawBytes.Length % 4 != 0)
+            {
+                Debug.LogWarning("The data received for the slices is malformed.");
+                outData = null;
+                return false;
+            }
+
+            int count = rawBytes.Length / 4;
+            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
+            {
+                Debug.LogWarning("The data received for the slices does not match the expected array length.");
+                outData = null;
+                return false;
+            }
+
+            outData = new Vector2[sliceCount, xArticulation, yArticulation];
+
+            for (int s = 0; s < sliceCount; s++)
+            {
+                for (int y = 0; y < yArticulation; y++)
+                {
+                    for (int x = 0; x < xArticulation; x++)
+                    {
+                        int i = 12;  //start at the end of the header.
+                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+
+                        outData[s, x, y] = new Vector2();
+                        outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
+                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
+                    }
+                }
+            }
+
+            return true;
         }
 
         //this method maps a float into a rgb 24 bit color space with max value of 4096
