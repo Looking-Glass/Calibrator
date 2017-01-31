@@ -111,7 +111,7 @@ namespace hypercube
 #endif
         bool searchForSerialComs()
         {
-            if (portSearches != null && portSearches.Length > 0) //we are still searching.
+            if (getIsStillSearchingForSerial()) //we are still searching.
                 return false;
 
             serialComSearchTime = 0f;
@@ -132,18 +132,42 @@ namespace hypercube
             return true;
         }
 
+        //are we still looking for serial comms and such?
+        bool getIsStillSearchingForSerial()
+        {
+            if (portSearches == null || portSearches.Length == 0) 
+                return false;
 
+            for (int i = 0; i < portSearches.Length; i++)
+            {
+                if (portSearches[i] != null)
+                    return true;
+            }
+
+            return false;
+        }
+
+
+        float connectTimer = 0f;
         void Update()
         {
             if (touchPanel == null)
             {
-                if (portSearches != null && portSearches.Length > 0)
+                connectTimer += Time.deltaTime;
+                if (getIsStillSearchingForSerial())
                     findSearialComUpdate(Time.deltaTime);
+                else if (connectTimer > 1f)
+                {
+                    searchForSerialComs(); //try searching again.
+                    connectTimer = 0f;
+                }
                 return;
             }
             else if (touchPanel.serial.enabled)
                 touchPanel.update(debug);
         }
+
+        
 
 
         //we haven't found all of our ports, keep trying.
