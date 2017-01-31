@@ -124,6 +124,7 @@ namespace hypercube
             for (int i = 0; i < portSearches.Length; i++)
             {
                 portSearches[i] = new serialPortFinder();
+                portSearches[i].debug = debug;
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
             }
 

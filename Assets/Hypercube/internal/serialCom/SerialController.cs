@@ -160,7 +160,8 @@ public class SerialController : MonoBehaviour
 
     public void SendSerialMessage(string message)
     {
-        serialThread.SendSerialMessage(message);
+        if (serialThread != null)
+            serialThread.SendSerialMessage(message);
     }
 }
 #endif

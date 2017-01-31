@@ -17,7 +17,7 @@ namespace hypercube
     public class serialPortFinder
     {
         public bool debug;
-        public float timeOut = 2f;
+        public float timeOut = 4f;
         float timer = 0f;
 
         public float firmwareVersion
