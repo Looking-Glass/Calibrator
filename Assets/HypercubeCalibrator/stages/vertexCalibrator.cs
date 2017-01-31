@@ -39,7 +39,7 @@ namespace hypercube
 
 //        float dotAspect = 1f;
 
-        public static int[] articulations = {3,5,9,17,33,65,129,257,513};
+        public static readonly int[] articulations = {3,5,9,17,33,65,129,257,513};
         public static int articulationLookup(int val)
         {
             for (int a = 0; a < articulations.Length; a++)
@@ -78,11 +78,11 @@ namespace hypercube
             dataFileDict d = canvas.GetComponent<dataFileDict>();
 
 
-            if (castMesh.loadCalibrationData(out slicesX, out slicesY, out articulationX, out articulationY, out vertices, d))
+            if (canvas.hasCalibration )
             {
                 resetOriginalVertexOffsets(); //reset just 'unsullied' data
             }
-            else
+            else // we don't have any old data.
             {
                 //these are set by the basic settings, so we can read them out here.
                 slicesX = d.getValueAsInt("slicesX", 1);
@@ -112,7 +112,7 @@ namespace hypercube
             setOptions(out yOptions, articulationY);
 
             updateTextures();
-            canvas.setCalibration(vertices);
+            canvas._setCalibration(vertices);
 
             base.OnEnable();
         }
@@ -329,7 +329,7 @@ namespace hypercube
 					if (flipX)
 						diff.x = -diff.x;
 					moveVert (diff.x, diff.y);
-					canvas.setCalibration (vertices);
+					canvas._setCalibration (vertices);
 				}
 			}
 

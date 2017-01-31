@@ -28,9 +28,12 @@ namespace hypercube
         public Vector3 aspectY { get; private set; }
         public Vector3 aspectZ { get; private set; }
 
-        private bool hasUSBCalibration = false;
-        private bool hasPCBCalibration = false;
-        private bool hasPCBBasic = false;
+        public bool hasUSBBasic { get; private set; }
+        //public bool hasUSBCalibration { get; private set; }
+        public bool hasPCBBasic { get; private set; }
+        //public bool hasPCBCalibration { get; private set; }
+        public bool hasCalibration { get; private set; }
+
 
         public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
         Vector2[,,] calibrationData = null;
@@ -79,20 +82,32 @@ namespace hypercube
         public calibrator currentCalibrator = null;
 #endif
 
-        public void setCalibration(Vector2[,,] data)
-        {        
+        public bool _setCalibration(Vector2[,,] data)
+        {
             if (data == null)
             {
                 Debug.LogWarning("Bad calibration sent to castMesh!");
-                return;
+                return false;
             }
 
             calibrationData = data;
             updateMesh();
+
+            hasCalibration = true;
+
+            return true;
         }
 
         public Material casterMaterial;
 
+        private void Awake()
+        {
+            hasUSBBasic = false;
+            //hasUSBCalibration = false;
+            hasPCBBasic = false;
+            //hasPCBCalibration = false;
+            hasCalibration = false;
+        }
 
         void Start()
         {
@@ -105,10 +120,6 @@ namespace hypercube
 
             if (!loadSettingsFromUSB())
             {
-                hasUSBCalibration = false;
-
-                hasPCBBasic = false;
-                hasPCBCalibration = false;
 
 #if !HYPERCUBE_INPUT
                 
@@ -137,64 +148,70 @@ namespace hypercube
 
         public bool loadSettingsFromUSB()
         {
-            hasUSBCalibration = false;
+            hasCalibration = false;
 
             dataFileDict d = GetComponent<dataFileDict>();
 
             d.clear();
+
+            bool foundCalibrationFile = false;
            
             if (hypercube.utils.getConfigPath(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
             {
+                hasUSBBasic = true;
 
                 string calibrationFile = "";
                 if (d.getValueAsBool("FPGA", false))
                 {
                     if (hypercube.utils.getConfigPath(usbConfigPath + "/" + perfectSlicesFileName, out calibrationFile))
-                        hasUSBCalibration = true;
+                        foundCalibrationFile = true;
+                    else if (utils.getConfigPath(perfectSlicesFileName, out calibrationFile))
+                        foundCalibrationFile = true;
                 }
                 else
                 {
                     calibrationFile = calibratedSlicesFileName;
-                    if (hypercube.utils.getConfigPath(usbConfigPath + "/" + calibratedSlicesFileName, out calibrationFile))
-                        hasUSBCalibration = true;
+                    if (utils.getConfigPath(usbConfigPath + "/" + calibratedSlicesFileName, out calibrationFile))
+                        foundCalibrationFile = true;
+                    else if (utils.getConfigPath(calibratedSlicesFileName, out calibrationFile))
+                        foundCalibrationFile = true;
                 }
+
                     
-                if (hasUSBCalibration)
+                if (foundCalibrationFile)
                 {
-                    #if UNITY_EDITOR
+#if UNITY_EDITOR
                     UnityEditor.Undo.RecordObject(this, "Loading settings from usb file."); //these force the editor to mark the canvas as dirty and save what is loaded.
-                    #endif
+#endif
                     applyLoadedSettings(d);
 
-                    //TODO apply the usb calibration
-                    Vector2[,,] v ;
+                    // apply the usb calibration
+                    Vector2[,,] v;
                     byte[] fileContents = System.IO.File.ReadAllBytes(calibrationFile);
-                    castMesh.getVerticesFromBinary(fileContents, out v);
-                    setCalibration(v);
+                    if (utils.bin2Vert(fileContents, out v))
+                        _setCalibration(v);
+                    else
+                        Debug.LogWarning("Failed to apply calibration found on the USB: " + calibrationFile);
+                        
                 }
             }
             else 
             {
                 //we failed to load the file!  ...the calling method will try the PCB now
-                hasUSBCalibration = false;
             }
                 
-            return hasUSBCalibration;
+            return hasCalibration;
         }
 
 
-        bool applyLoadedSettings(dataFileDict d)
+        void applyLoadedSettings(dataFileDict d)
         {             
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
 
-            if (!loadCalibrationData(out calibrationData, d))
-                return false;
-
             Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
   
-            updateMesh();       
   
             //setup input to take into account touchscreen hardware config
             input.init(d);
@@ -211,62 +228,8 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessR", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
-
-            return true;
         }
 
-        public static bool loadCalibrationData (out Vector2[,,] _vertData, dataFileDict d)
-        {
-            int x,y, _articulationX, _articulationY = 0;
-            return loadCalibrationData(out x, out y, out _articulationX, out _articulationY, out _vertData, d);
-        }
-        public static bool loadCalibrationData(out int _slicesX, out int _slicesY, out int _articulationX, out int _articulationY, out Vector2[,,] _vertData, dataFileDict d)
-        {
-            _slicesX = _slicesY = _articulationX = _articulationY = 0;
-            _vertData = null;
-            
-            _slicesX = d.getValueAsInt("slicesX", 1);
-            _slicesY = d.getValueAsInt("slicesY", 10);
-            _articulationX = d.getValueAsInt("articulationX", 33);
-            _articulationY = d.getValueAsInt("articulationY", 17);
-        
-
-            if (_slicesX < 1 || _slicesY < 1)
-                return false;
-
-            int sliceCount = _slicesX * _slicesY;
-
-
-            //TODO get the vert calibration out of the file
-
-            string[] floatDataStr = vertStr.Split(',');
-            if (floatDataStr.Length != _articulationX * _articulationY * sliceCount * 2) //the 2 accounts for both x,y values
-                return false;
-
-            //recover the values from the datafile
-            float[] floatData = new float[floatDataStr.Length];
-            for (int f = 0; f < floatDataStr.Length; f++)
-            {
-                floatData[f] = dataFileDict.stringToFloat(floatDataStr[f], 0f);
-            }
-
-            _vertData = new Vector2[sliceCount, _articulationX, _articulationY];
-            int c = 0;
-            for (int s = 0; s < sliceCount; s++)
-            {
-                for (int y = 0; y <= _articulationY; y++)
-                {
-                    for (int x = 0; x <= _articulationX; x++)
-                    {
-                        _vertData[s, x, y] = new Vector2(floatData[c], floatData[c + 1]);
-                        c++;
-                        c++;
-                    }
-                }
-            }
-
-            return true;
-        }
 
 		//requires the physical dimensions of the projection, in Centimeters. Should not be public except for use by calibration tools or similar. 
 #if HYPERCUBE_DEV
@@ -318,27 +281,23 @@ namespace hypercube
 
         void Update()
         {
-            if (!hasPCBCalibration && !hasUSBCalibration)
+            if (!hasCalibration)
             {
-                if (!hasPCBBasic && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it.
+                if (!hasPCBBasic && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it if it isn't null.
                 {
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (input.touchPanel._getConfigData(ref d))
                     {
-                        if (applyLoadedSettings(d))
-                        {
-                            hasPCBBasic = true;
-                            if (d.getValueAsBool("useFPGA", false))
-                                input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
-                            else
-                                input.touchPanel.serial.SendSerialMessage("read2"); //ask for calibrated slices (much larger)
-                        }
+                        applyLoadedSettings(d);
+     
+                        hasPCBBasic = true; //only ask once
+                        if (d.getValueAsBool("useFPGA", false))
+                            input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
+                        else
+                            input.touchPanel.serial.SendSerialMessage("read2"); //ask for calibrated slices (much larger)
+
                     }                      
-                }
-                else if (hasPCBBasic && input.touchPanel._applyHardwareCalibration(this))
-                {
-                    hasPCBCalibration = true;
-                }                  
+                }              
             }
 
             if (transform.hasChanged)
@@ -618,56 +577,6 @@ namespace hypercube
 
             // testMaterial.SetTexture("_MainTex", xTex);  //test
             // testMaterial2.SetTexture("_MainTex", yTex);
-        }
-
-
-        //converts stored binary calibration data into a proper array for the castMesh
-        public static bool getVerticesFromBinary(string inBinaryData, out Vector2[,,] outData)
-        {
-            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData);
-            return getVerticesFromBinary(rawBytes, out outData);
-        }
-        public static bool getVerticesFromBinary(byte[] rawBytes, out Vector2[,,] outData)
-        {
-            
-            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
-            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
-            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
-
-            if (rawBytes.Length % 4 != 0)
-            {
-                Debug.LogWarning("The data received for the slices is malformed.");
-                outData = null;
-                return false;
-            }
-
-            int count = rawBytes.Length / 4;
-            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
-            {
-                Debug.LogWarning("The data received for the slices does not match the expected array length.");
-                outData = null;
-                return false;
-            }
-
-            outData = new Vector2[sliceCount, xArticulation, yArticulation];
-
-            for (int s = 0; s < sliceCount; s++)
-            {
-                for (int y = 0; y < yArticulation; y++)
-                {
-                    for (int x = 0; x < xArticulation; x++)
-                    {
-                        int i = 12;  //start at the end of the header.
-                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
-
-                        outData[s, x, y] = new Vector2();
-                        outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
-                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
-                    }
-                }
-            }
-
-            return true;
         }
 
         //this method maps a float into a rgb 24 bit color space with max value of 4096

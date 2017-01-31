@@ -11,6 +11,8 @@ namespace hypercube
 
         public UnityEngine.UI.InputField resX;
         public UnityEngine.UI.InputField resY;
+        public UnityEngine.UI.InputField sliceResX;
+        public UnityEngine.UI.InputField sliceResY;
         public UnityEngine.UI.InputField slicesX;
         public UnityEngine.UI.InputField slicesY;
         public UnityEngine.UI.Dropdown articulationX;
@@ -34,6 +36,9 @@ namespace hypercube
 
             resX.text = d.getValueAsInt("volumeResX", 1920).ToString();
             resY.text = d.getValueAsInt("volumeResY", 1080).ToString();
+
+            sliceResX.text = d.getValueAsInt("sliceResX", 1080).ToString();
+            sliceResY.text = d.getValueAsInt("sliceResY", 150).ToString();
 
             slicesX.text = d.getValueAsInt("slicesX", 1).ToString();
             slicesY.text = d.getValueAsInt("slicesY", 10).ToString();
@@ -117,6 +122,9 @@ namespace hypercube
 
             d.setValue("volumeResX", dataFileDict.stringToInt(resX.text, 1920));
             d.setValue("volumeResY", dataFileDict.stringToInt(resY.text, 1080));
+
+            d.setValue("sliceResX", dataFileDict.stringToInt(sliceResX.text, 1080));
+            d.setValue("sliceResY", dataFileDict.stringToInt(sliceResY.text, 150));
 
             d.setValue("slicesX", dataFileDict.stringToInt(slicesX.text, 1));
             d.setValue("slicesY", dataFileDict.stringToInt(slicesY.text, 10));

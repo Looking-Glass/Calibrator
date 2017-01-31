@@ -78,7 +78,7 @@ namespace hypercube
 
                 if (data.StartsWith("firmwareVersion::"))
                 {
-                    string[] toks = data.Split("::".ToCharArray());
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     firmwareVersion = dataFileDict.stringToFloat(toks[2], firmwareVersion);
 
                     if (toks[1] == "touchPanelsPCB")
@@ -86,6 +86,8 @@ namespace hypercube
 
                     //TODO add any other kinds of serial ports that need ID here.
                 }
+
+                data = testSubject.ReadSerialMessage();
             }
 
             return type;

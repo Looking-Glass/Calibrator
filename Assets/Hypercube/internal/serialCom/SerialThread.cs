@@ -229,7 +229,7 @@ public class SerialThread
             if (outputQueue.Count != 0)
             {
                 string outputMessage = (string)outputQueue.Dequeue();
-                serialPort.WriteLine(outputMessage);
+                serialPort.Write(outputMessage);
             }
 
             // Read a message.

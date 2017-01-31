@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 
 //the main Hypercube input class, use this to access all physical input from Volume
-//note that Volume also stores its calibration inside the touchscreen circuit board.  This calibration is also read by this class and sent to the castMesh.
+//note that Volume stores its calibration inside the touchscreen circuit board.  This calibration is read by this class and sent to the castMesh.
 
 //regarding the i/o of calibration data into the touchscreen pcb, it is stored on the board in 3 areas:
 //area 0 = the basic config data. stored in text form native to the dataFileDict class.  This is < 1k of data containg things such as projector resolution, touch screen resolution, does this hardware use an fpga, etc.
@@ -18,6 +18,7 @@ namespace hypercube
     {
         //singleton pattern
         private static input instance = null;
+        public static input _get() { return instance; }
         void Awake()
         {
             if (instance != null && instance != this)
@@ -32,7 +33,8 @@ namespace hypercube
 
             touchPanel = null;
 
-            searchForSerialComs();
+            if (!searchForSerialComs())
+                Debug.LogWarning("Can't get input from Volume because no ports were detected! Confirm that Volume is connected via USB.");
         }
 
         public int baudRate = 57600;
@@ -104,23 +106,29 @@ namespace hypercube
             }
         }
 
-        void searchForSerialComs()
+#if HYPERCUBE_DEV //allow access to calibrator
+        public 
+#endif
+        bool searchForSerialComs()
         {
+            if (portSearches != null && portSearches.Length > 0) //we are still searching.
+                return false;
+
             serialComSearchTime = 0f;
             string[] names = getPortNames();
 
             if (names.Length == 0)
-            {
-                Debug.LogWarning("Can't get input from Volume because no ports were detected! Confirm that Volume is connected via USB.");
-                return;
-            }
+                return false;
 
             portSearches = new serialPortFinder[names.Length];
             for (int i = 0; i < portSearches.Length; i++)
             {
                 portSearches[i] = new serialPortFinder();
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
-            } 
+            }
+
+            serialComSearchTime = 0f;
+            return true;
         }
 
 
@@ -128,7 +136,8 @@ namespace hypercube
         {
             if (touchPanel == null)
             {
-                findSearialComUpdate(Time.deltaTime);
+                if (portSearches != null && portSearches.Length > 0)
+                    findSearialComUpdate(Time.deltaTime);
                 return;
             }
             else if (touchPanel.serial.enabled)
@@ -158,6 +167,8 @@ namespace hypercube
                     portSearches[i] = null; //stop checking this port for relevance.
                     touchPanel.serial.readDataAsString = true;
                     touchPanel.serial.SendSerialMessage("read0"); //send for the config asap. 
+                    if (debug)
+                        Debug.Log("Connected to and identified touch panel PCB hardware.");
                     endPortSearch(); //this version of the tools only knows how to use touchpanel serial port. we are done.
                 }
                 else if (t == serialPortType.SERIAL_WORKING)
@@ -185,7 +196,7 @@ namespace hypercube
             }
         }
 
-        public static string[] getPortNames()
+        static string[] getPortNames()
         {
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             return System.IO.Ports.SerialPort.GetPortNames();
@@ -220,25 +231,26 @@ namespace hypercube
             sc.maxUnreadMessages = maxUnreadMessage;
             sc.maxFailuresAllowed = maxAllowedFailure;
             sc.enabled = true;
+            sc.readDataAsString = true;
             return sc;
         }
 
 
-        public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
-        {
-            if (!instance)
-                return false;
+        //public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
+        //{
+        //    if (!instance)
+        //        return false;
 
-            if (touchPanel != null)
-            {
-                if (!touchPanel.serial.enabled)
-                    touchPanel.serial.readDataAsString = true; //we must wait for another init:done before we give the go-ahead to get raw data again.
-                else if (touchPanel.serial.readDataAsString == false)
-                    return true;
-            }
+        //    if (touchPanel != null)
+        //    {
+        //        if (!touchPanel.serial.enabled)
+        //            touchPanel.serial.readDataAsString = true; //we must wait for another init:done before we give the go-ahead to get raw data again.
+        //        else if (touchPanel.serial.readDataAsString == false)
+        //            return true;
+        //    }
 
-            return false;
-        }
+        //    return false;
+        //}
 
         //static bool sendCommandToHardware(string cmd)
         //{
@@ -257,7 +269,7 @@ namespace hypercube
     
         void searchForSerialComs()
         {
-
+            printWarning();
         }
 
         public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
@@ -266,7 +278,7 @@ namespace hypercube
         }
         public static void sendCommandToHardware(string cmd)
         {
-            printWarning();
+
         }
     
         void Start () 
@@ -281,7 +293,7 @@ namespace hypercube
         }
 #endif
 
-        }
+    }
 
 
 }

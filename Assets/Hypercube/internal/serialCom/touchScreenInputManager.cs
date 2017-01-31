@@ -138,35 +138,41 @@ public class touchScreenInputManager  : streamedInputManager
             if (debug)
                 Debug.Log("touchScreenInputMgr: "+ data);
 
-                //this is now handled by the port finder
-                if (serial.readDataAsString)
+            //this is now handled by the port finder
+            if (serial.readDataAsString)
+            {
+                if (data.StartsWith("data0::") && data.EndsWith("::done"))
                 {
-                    if (data.StartsWith("data0::") && data.EndsWith("::done"))
-                    {
-                        string[] toks = data.Split("::".ToCharArray());
-                        serial.readDataAsString = false; //we got what we want now lets go back
-                        basicConfigData = toks[1];
-                    }
-                    else if (data.StartsWith("data1::") && data.EndsWith("::done"))
-                    {
-                        string[] toks = data.Split("::".ToCharArray());
-                        serial.readDataAsString = false; //we got what we want now lets go back
-                        readSlices(toks[1]);
-                        //in principle we could store here whether the data we have is sullied or perfect, but there are no known cases where the software will need to know both.
-                    }
-                    else if (data.StartsWith("data2::") && data.EndsWith("::done"))
-                    {
-                        string[] toks = data.Split("::".ToCharArray());
-                        serial.readDataAsString = false; //we got what we want now lets go back
-                        readSlices(toks[1]);
-                    }
-                    
-                    return;
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    serial.readDataAsString = false; //we got what we want now lets go back
+                    basicConfigData = toks[1];
                 }
+                else if (data.StartsWith("data1::") && data.EndsWith("::done"))
+                {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    serial.readDataAsString = false; //we got what we want now lets go back
+                    Vector2[,,] verts = null;
+                    if (utils.bin2Vert(toks[1], out verts))
+                        input._get().GetComponent<castMesh>()._setCalibration(verts);
+                    else
+                        Debug.LogWarning("Received faulty 'perfect' vertex data");
+                }
+                else if (data.StartsWith("data2::") && data.EndsWith("::done"))
+                {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    serial.readDataAsString = false; //we got what we want now lets go back
+                    Vector2[,,] verts = null;
+                    if (utils.bin2Vert(toks[1], out verts))
+                        input._get().GetComponent<castMesh>()._setCalibration(verts);
+                    else
+                        Debug.LogWarning("Received faulty 'calibrated' vertex data");
+                }
+                    
+                return;
+            }
 
 
-                addData(System.Text.Encoding.Unicode.GetBytes(data));
-     
+            addData(System.Text.Encoding.Unicode.GetBytes(data));
             data = serial.ReadSerialMessage();
         }
 
@@ -244,42 +250,20 @@ public class touchScreenInputManager  : streamedInputManager
     }
 
 
-    Vector2[,,] sliceData = null;
-    public bool _applyHardwareCalibration(castMesh c )
-    {
-            if (sliceData == null)
-                return false;
+    //Vector2[,,] sliceData = null;
+    //public bool _applyHardwareCalibration(castMesh c )
+    //{
+    //        if (sliceData == null)
+    //            return false;
 
-            c.setCalibration(sliceData);
-            return true;        
-    }
+    //        c.setCalibration(sliceData);
+    //        return true;        
+    //}
 
        
 
 
 #if HYPERCUBE_DEV
-
-     public static byte[] _convertCalibrationToData(Vector2[,,] d)
-    {
-        List<byte> outData = new List<byte>();
-
-        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(0))); //header
-        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(1)));
-        outData.AddRange(System.BitConverter.GetBytes(d.GetLength(2)));
-
-        for (int s = 0; s < d.GetLength(0); s++)  //data
-        {
-            for (int y = 0; y < d.GetLength(1); y++)
-            {
-                for (int x = 0; x < d.GetLength(2); x++)
-                {
-                    outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].x));
-                    outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].y));
-                }
-            }
-        }
-        return outData.ToArray();
-    }
 
     public bool _writeSlices(Vector2[,,] d, bool sullied)
     {
@@ -292,7 +276,7 @@ public class touchScreenInputManager  : streamedInputManager
         else
             serial.SendSerialMessage("write1"); //perfect slices
 
-         serial.SendSerialMessage(_convertCalibrationToData(d).ToString());
+         serial.SendSerialMessage(utils.vert2Bin(d).ToString());
 
         return true;
     }

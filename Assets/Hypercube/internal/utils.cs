@@ -1,11 +1,17 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 
 namespace hypercube
 {
     public class utils
     {
+        public static bool getConfigPath(string relativePathToConfig)
+        {
+            string temp;
+            return getConfigPath(relativePathToConfig, out temp);
+        }
         //this method is used to figure out which drive is the usb flash drive attached to Volume, and then returns that path so that our settings can load normally from there.
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
         public static bool getConfigPath(string relativePathToConfig, out string fullPath)
@@ -22,7 +28,6 @@ namespace hypercube
                     return true;
                 }
             }
-            Debug.LogWarning("Could not locate Volume calibration file!\nIs Volume connected via USB?");
             fullPath = Path.GetFileName(relativePathToConfig); //return the base name of the file only.
             return false;
         }
@@ -69,6 +74,81 @@ namespace hypercube
             }
             return new Color32(r, g, b, a);
         }
+
+
+
+        //this converts castMesh vertex offsets, into a binary form.
+        public static byte[] vert2Bin(Vector2[,,] d)
+        {
+            List<byte> outData = new List<byte>();
+
+            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(0))); //header
+            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(1)));
+            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(2)));
+
+            for (int s = 0; s < d.GetLength(0); s++)  //data
+            {
+                for (int y = 0; y < d.GetLength(1); y++)
+                {
+                    for (int x = 0; x < d.GetLength(2); x++)
+                    {
+                        outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].x));
+                        outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].y));
+                    }
+                }
+            }
+            return outData.ToArray();
+        }
+
+        //converts stored binary calibration data into a proper array for the castMesh
+        public static bool bin2Vert(string inBinaryData, out Vector2[,,] outData)
+        {
+            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData);
+            return bin2Vert(rawBytes, out outData);
+        }
+        public static bool bin2Vert(byte[] rawBytes, out Vector2[,,] outData)
+        {
+
+            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
+            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
+            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
+
+            if (rawBytes.Length % 4 != 0)
+            {
+                Debug.LogWarning("The data received for the slices is malformed.");
+                outData = null;
+                return false;
+            }
+
+            int count = rawBytes.Length / 4;
+            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
+            {
+                Debug.LogWarning("The data received for the slices does not match the expected array length.");
+                outData = null;
+                return false;
+            }
+
+            outData = new Vector2[sliceCount, xArticulation, yArticulation];
+
+            for (int s = 0; s < sliceCount; s++)
+            {
+                for (int y = 0; y < yArticulation; y++)
+                {
+                    for (int x = 0; x < xArticulation; x++)
+                    {
+                        int i = 12;  //start at the end of the header.
+                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+
+                        outData[s, x, y] = new Vector2();
+                        outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
+                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
+                    }
+                }
+            }
+
+            return true;
+        }
+
     }
 
 }

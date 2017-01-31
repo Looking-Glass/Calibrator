@@ -23,12 +23,10 @@ namespace hypercube
 
         public bool allowNextStage = true; //can be used to block progress if settings are bad
 
+        private float checkUSBtimer = 0f;
 
         void Start()
         {
-
-
-
 
             stage = 0;
             resetStage();
@@ -38,16 +36,25 @@ namespace hypercube
         {
 
             //don't progress without the usb...
-            //if (stage == 0)
-            //{
-                
-            //    checkUSBtimer += Time.deltaTime;
-            //    if (checkUSBtimer > 2f) //check every 2 seconds
-            //    {
-            //        canvas.loadSettingsFromUSB();
-            //        checkUSBtimer = 0;
-            //    }
-            //}
+            if (stage == 0)
+            {
+
+               
+                checkUSBtimer += Time.deltaTime;
+                if (checkUSBtimer > 2f) //check every 2 seconds
+                {
+                    if (input.touchPanel != null || canvas.hasUSBBasic)
+                    {
+                        nextStage();
+                        return;
+                    }
+
+                    if (input._get())
+                        input._get().searchForSerialComs(); //check again...
+                    checkUSBtimer = 0;
+                }
+
+            }
 
             //normal path...
 
