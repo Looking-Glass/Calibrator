@@ -75,7 +75,11 @@ namespace hypercube
             return new Color32(r, g, b, a);
         }
 
-
+        public static void vert2Bin(Vector2[,,] d, out string base64binary)
+        {
+            byte[] data = vert2Bin(d);
+            base64binary = System.Convert.ToBase64String(data);
+        }
 
         //this converts castMesh vertex offsets, into a binary form.
         public static byte[] vert2Bin(Vector2[,,] d)
@@ -95,8 +99,10 @@ namespace hypercube
                 {
                     for (int x = 0; x < ax; x++)
                     {
-                        outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].x));
-                        outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].y));
+                        float vx = d[s, x, y].x; //pass it to a variable, because it doesn't encode properly when its directly sent into get bytes.
+                        float vy = d[s, x, y].y;
+                        outData.AddRange(System.BitConverter.GetBytes(vx));
+                        outData.AddRange(System.BitConverter.GetBytes(vy));
                     }
                 }
             }
@@ -104,9 +110,10 @@ namespace hypercube
         }
 
         //converts stored binary calibration data into a proper array for the castMesh
-        public static bool bin2Vert(string inBinaryData, out Vector2[,,] outData)
+        public static bool bin2Vert(string base64binary, out Vector2[,,] outData)
         {
-            byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData);
+            byte[] rawBytes = System.Convert.FromBase64String(base64binary);
+            //byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData); //use this line if hte string contains the raw data itself
             return bin2Vert(rawBytes, out outData);
         }
         public static bool bin2Vert(byte[] rawBytes, out Vector2[,,] outData)
@@ -139,12 +146,13 @@ namespace hypercube
                 {
                     for (int x = 0; x < xArticulation; x++)
                     {
-                        int i = 12;  //start at the end of the header.
-                        i += (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+                        int i = (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+                        i *= 4;
+                        i += 12;//start at the end of the header.
 
                         outData[s, x, y] = new Vector2();
                         outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
-                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 1);
+                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 4);
                     }
                 }
             }

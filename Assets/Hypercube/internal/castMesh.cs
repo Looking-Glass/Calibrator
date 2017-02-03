@@ -37,10 +37,13 @@ namespace hypercube
             if (pcbSettings != "")
                 Debug.LogWarning("PCB basic settings seem to have been asked for more than once!");
             pcbSettings = _pcbSettings;
-        }
+ #if HYPERCUBE_DEV
+            calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
+#endif
+    }
 
 
-        public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
+    public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
         Vector2[,,] calibrationData = null;
 
         public bool flipX = false;  //modifier values, by the user.
@@ -85,6 +88,9 @@ namespace hypercube
 
 #if HYPERCUBE_DEV
         public calibrator currentCalibrator = null;
+
+        public vertexCalibrator calibratorV;
+        public basicSettingsAdjustor calibratorBasic;
 #endif
 
         public bool _setCalibration(Vector2[,,] data)
@@ -162,6 +168,9 @@ namespace hypercube
             if (hypercube.utils.getConfigPath(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
             {
                 hasUSBBasic = true;
+#if HYPERCUBE_DEV
+                calibratorBasic.usbText.text = "<color=yellow>USB</color>";
+#endif
 
                 string calibrationFile = "";
                 if (d.getValueAsBool("FPGA", false))
@@ -183,16 +192,17 @@ namespace hypercube
                     
                 if (foundCalibrationFile)
                 {
-#if UNITY_EDITOR
-                    UnityEditor.Undo.RecordObject(this, "Loading settings from usb file."); //these force the editor to mark the canvas as dirty and save what is loaded.
-#endif
                     applyLoadedSettings(d);
 
                     // apply the usb calibration
                     Vector2[,,] v;
                     byte[] fileContents = System.IO.File.ReadAllBytes(calibrationFile);
-                    if (utils.bin2Vert(fileContents, out v))
-                        _setCalibration(v);
+                    if (utils.bin2Vert(fileContents, out v) && _setCalibration(v))
+                    {
+#if HYPERCUBE_DEV
+                            calibratorBasic.usbText.text = "<color=#00ff00>USB</color>";
+#endif
+                    }
                     else
                         Debug.LogWarning("Failed to apply calibration found on the USB: " + calibrationFile);
                         
@@ -301,10 +311,10 @@ namespace hypercube
             {
                 if (!askedForPCBCalibration && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it if it isn't null.
                 {
-                    dataFileDict d = GetComponent<dataFileDict>();
-                    if (pcbSettings != "")
+                    
+                    if (pcbSettings != "") //this will not be blank if we have received data0 (the basic settings) from the pcb (input.findSearialComUpdate asks the pcb for this)... if we have, go ahead and ask for the calibration.
                     {
-                        
+                        dataFileDict d = GetComponent<dataFileDict>();
                         if (!d.loadFromString(pcbSettings))
                             Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt. Asking for calibration anyhow...");
 
@@ -312,11 +322,14 @@ namespace hypercube
 
                         askedForPCBCalibration = true; //only ask once
 
+                        if (input.touchPanel.serial.readDataAsString != true)
+                            input.touchPanel.serial.readDataAsString = true; 
                         if (d.getValueAsBool("useFPGA", false))
                             input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
                         else
                             input.touchPanel.serial.SendSerialMessage("read2"); //ask for calibrated slices (much larger)
-
+                        
+                        //the response to read1/read2 are then handled by touchScreenInputManager.Update()
                     }                      
                 }              
             }

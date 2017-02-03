@@ -127,13 +127,11 @@ public class touchScreenInputManager  : streamedInputManager
         touchScreens[7]._init(7, d, 0f, 0f);
     }
 
-
-
-    public override void update(bool debug)
+     public override void update(bool debug)
     {
 
         string data = serial.ReadSerialMessage();
-        while (data != null)
+        while (data != null && data != "")
         {
             if (debug)
                 Debug.Log("touchScreenInputMgr: "+ data);
@@ -144,7 +142,7 @@ public class touchScreenInputManager  : streamedInputManager
                 if (data.StartsWith("data0::") && data.EndsWith("::done"))
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
-                    serial.readDataAsString = false; //we got what we want now lets go back
+                    //serial.readDataAsString = false; //this will immediately be sent back to true so we can get our calibration
                     input._get().GetComponent<castMesh>().setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
                 }
                 else if (data.StartsWith("data1::") && data.EndsWith("::done"))
@@ -154,31 +152,30 @@ public class touchScreenInputManager  : streamedInputManager
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
                     {
-                            input._get().GetComponent<castMesh>()._setCalibration(verts);
-#if HYPERCUBE_DEV 
-                            vertexCalibrator v = GameObject.FindObjectOfType<vertexCalibrator>(); //if we are calibrating, the calibrator needs to know about previous calibrations
-                            if (v) v.setVerticesFromPCB(verts);
+                            castMesh cm = input._get().GetComponent<castMesh>();
+                            cm._setCalibration(verts);
+#if HYPERCUBE_DEV
+                            if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
 #endif
                     }
 
                     else
-                    Debug.LogWarning("Received faulty 'perfect' vertex data");
+                        Debug.LogWarning("Received faulty 'perfect' vertex data");
 
                 }
-                    else if (data.StartsWith("data2::") && data.EndsWith("::done"))
+                else if (data.StartsWith("data2::") && data.EndsWith("::done"))
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     serial.readDataAsString = false; //we got what we want now lets go back
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
                     {
-                        input._get().GetComponent<castMesh>()._setCalibration(verts);
+                        castMesh cm = input._get().GetComponent<castMesh>();
+                        cm._setCalibration(verts);
 #if HYPERCUBE_DEV
-                        vertexCalibrator v = GameObject.FindObjectOfType<vertexCalibrator>(); //if we are calibrating, the calibrator needs to know about previous calibrations
-                        if (v) v.setVerticesFromPCB(verts);
+                        if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
 #endif
                     }
-
                     else
                         Debug.LogWarning("Received faulty 'calibrated' vertex data");
                 }
@@ -330,7 +327,9 @@ public class touchScreenInputManager  : streamedInputManager
                  yield return pcbIoState;
             }
 
-            serial.SendSerialMessage(System.Text.Encoding.UTF8.GetString(utils.vert2Bin(d)));
+            string saveData;
+            utils.vert2Bin(d, out saveData);
+            serial.SendSerialMessage(saveData);
 
             while (_recordingMode)//don't exit until we are done.
             {

@@ -15,6 +15,8 @@ namespace hypercube
             INVALID
         }
 
+        public basicSettingsAdjustor basicSettings;  //make it possible to let it know if there were updates from the pcb
+
         public renderCondition renderDots = renderCondition.ALL_SLICES;
         public renderCondition renderNum = renderCondition.CURRENT_SLICE;
         public renderCondition renderBgImage = renderCondition.OFF;
@@ -141,10 +143,12 @@ namespace hypercube
             if (perfectVertices == null) //we are still in menu, just supply this data.
             {
                 vertices = newVerts;
+                basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
                 return;
             }
 
-            canvas._setCalibration(vertices); //force it back to ours, something was incompatible with the user settings.
+            if (canvas._setCalibration(vertices)) //force it back to ours, something was incompatible with the user settings.
+                basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
 
         }
 

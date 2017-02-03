@@ -26,6 +26,9 @@ namespace hypercube
         public UnityEngine.UI.Text sliceInfo;
         public UnityEngine.UI.Text sliceCount;
 
+        public UnityEngine.UI.Text usbText;
+        public UnityEngine.UI.Text pcbText;
+
         void OnEnable()
         {
             reloadDataFile();

@@ -184,11 +184,11 @@ namespace hypercube
                     portSearches[i] = null;
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
-                {
+                {                  
                     touchPanel = new touchScreenInputManager(portSearches[i].getSerialInput(), portSearches[i].firmwareVersion); //we found the touch panel. Hand off the serialInput component to it's proper, custom handler
-                    portSearches[i] = null; //stop checking this port for relevance.
                     touchPanel.serial.readDataAsString = true;
                     touchPanel.serial.SendSerialMessage("read0"); //send for the config asap. 
+                    portSearches[i] = null; //stop checking this port for relevance.                   
                     if (debug)
                         Debug.Log("Connected to and identified touch panel PCB hardware.");
                     endPortSearch(); //this version of the tools only knows how to use touchpanel serial port. we are done.
