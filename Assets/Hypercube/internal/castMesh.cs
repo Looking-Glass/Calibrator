@@ -29,10 +29,15 @@ namespace hypercube
         public Vector3 aspectZ { get; private set; }
 
         public bool hasUSBBasic { get; private set; }
-        //public bool hasUSBCalibration { get; private set; }
-        public bool hasPCBBasic { get; private set; }
-        //public bool hasPCBCalibration { get; private set; }
+        public bool askedForPCBCalibration { get; private set; }
         public bool hasCalibration { get; private set; }
+        private string pcbSettings = "";
+        public void setPCBbasicSettings(string _pcbSettings)
+        {
+            if (pcbSettings != "")
+                Debug.LogWarning("PCB basic settings seem to have been asked for more than once!");
+            pcbSettings = _pcbSettings;
+        }
 
 
         public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
@@ -103,9 +108,7 @@ namespace hypercube
         private void Awake()
         {
             hasUSBBasic = false;
-            //hasUSBCalibration = false;
-            hasPCBBasic = false;
-            //hasPCBCalibration = false;
+            askedForPCBCalibration = false;
             hasCalibration = false;
         }
 
@@ -123,7 +126,7 @@ namespace hypercube
 
 #if !HYPERCUBE_INPUT
                 
-#if UNITY_EDITOR               
+#if UNITY_EDITOR
             Debug.LogWarning("HYPERCUBE: Can't load settings. Please run: Hypercube > Load Volume Friendly Unity Prefs to allow Hypercube to read settings off the Volume USB.");
 #else
             //TODO show only an interactive preview?
@@ -211,8 +214,16 @@ namespace hypercube
 
 
             Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
-  
-  
+
+#if !UNITY_EDITOR
+            //set the res, if it is different.
+            int resXpref = d.getValueAsInt("volumeResX", 1920);
+            int resYpref = d.getValueAsInt("volumeResY", 1080);
+
+            if (Screen.width != resXpref || Screen.height != resYpref)
+                Screen.SetResolution(resXpref, resYpref, true);
+#endif
+
             //setup input to take into account touchscreen hardware config
             input.init(d);
 
@@ -228,6 +239,11 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessR", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
+
+#if HYPERCUBE_DEV  //only relevant for calibration env
+            basicSettingsAdjustor b = GameObject.FindObjectOfType<basicSettingsAdjustor>();
+            if (b) b.reloadDataFile(); //we may have received a delayed update from the pcb, make sure any gui in the calibration is updated.
+#endif
         }
 
 
@@ -283,14 +299,19 @@ namespace hypercube
         {
             if (!hasCalibration)
             {
-                if (!hasPCBBasic && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it if it isn't null.
+                if (!askedForPCBCalibration && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it if it isn't null.
                 {
                     dataFileDict d = GetComponent<dataFileDict>();
-                    if (input.touchPanel._getConfigData(ref d))
+                    if (pcbSettings != "")
                     {
+                        
+                        if (!d.loadFromString(pcbSettings))
+                            Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt. Asking for calibration anyhow...");
+
                         applyLoadedSettings(d);
-     
-                        hasPCBBasic = true; //only ask once
+
+                        askedForPCBCalibration = true; //only ask once
+
                         if (d.getValueAsBool("useFPGA", false))
                             input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
                         else

@@ -40,8 +40,8 @@ namespace hypercube
         uint[][] xOptions;
         uint[][] yOptions;
 
-        Vector2[,,] vertices;
-        Vector2[,,] perfectVertices; //the untouched values. Instead of recalculating where on the mesh we are at each time if we need to reset some value(s), keeping them here is an easy and flexible way to do so.
+        Vector2[,,] vertices = null;
+        Vector2[,,] perfectVertices = null; //the untouched values. Instead of recalculating where on the mesh we are at each time if we need to reset some value(s), keeping them here is an easy and flexible way to do so.
 
         int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 		int displayLevelY = 0;
@@ -54,7 +54,6 @@ namespace hypercube
         Material[] sliceMaterials = null;
         RenderTexture[] sliceTextures = null;
 
-//        float dotAspect = 1f;
 
         public static readonly int[] articulations = {3,5,9,17,33,65,129,257,513};
         public static int articulationLookup(int val)
@@ -66,15 +65,6 @@ namespace hypercube
             }
             return -1; 
         }
-        //static int getVertsFromDivLevel(int d)
-        //{
-        //    if (d == 0)
-        //        return 0;
-        //    if (d == 1)
-        //        return 2;
-
-        //    return (getVertsFromDivLevel(d - 1) * 2) - 1;
-        //}
 
         public override Material[] getMaterials()
         {
@@ -94,34 +84,36 @@ namespace hypercube
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
 
+            //these are set by the basic settings, so we can read them out here.
+            slicesX = d.getValueAsInt("slicesX", 1);
+            slicesY = d.getValueAsInt("slicesY", 10);
+            articulationX = d.getValueAsInt("articulationX", 33);
+            articulationY = d.getValueAsInt("articulationY", 17);
 
-            if (canvas.hasCalibration )
+            //if something is wrong or incoherent, reset everything to some default.
+            //this should almost never happen.
+            if (slicesX < 1)
+                slicesX = 1;
+            if (slicesY < 1)
+                slicesY = 1;
+
+            if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
+                articulationX = articulations[4];
+            if (articulationLookup(articulationY) == -1)
+                articulationY = articulations[3];
+
+            resetVertexData(true); //reset just perfect data data
+
+            if (vertices == null || (
+                canvas.hasCalibration && 
+                slicesX * slicesY == vertices.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
+                articulationX == vertices.GetLength(1) &&
+                articulationY == vertices.GetLength(2)
+                ))
             {
-                resetOriginalVertexOffsets(); //reset just 'unsullied' data
+                resetVertexData(false); //change the calibrated vertices
             }
-            else // we don't have any old data.
-            {
-                //these are set by the basic settings, so we can read them out here.
-                slicesX = d.getValueAsInt("slicesX", 1);
-                slicesY = d.getValueAsInt("slicesY", 10);
-                articulationX = d.getValueAsInt("articulationX", 33);
-                articulationY = d.getValueAsInt("articulationY", 17);
 
-                //if something is wrong or incoherent, reset everything to some default.
-                //this should almost never happen.
-                if (slicesX < 1)
-                    slicesX = 1;
-                if (slicesY < 1)
-                    slicesY = 1;
-
-                if (articulationLookup(articulationX) == -1) //ensure that our articulations are only of the allowed, otherwise calibration will be too confusing
-                    articulationX = articulations[4];
-                if (articulationLookup(articulationY) == -1)
-                    articulationY = articulations[3];
-
-                resetOriginalVertexOffsets(true); //change both vertices and perfectVertices
-
-            }
 
             //configure ourselves
             //the following lines will tell us what elements to highlight when we toggle between levels of detail
@@ -132,6 +124,28 @@ namespace hypercube
             canvas._setCalibration(vertices);
 
             base.OnEnable();
+        }
+
+        //pcb just gave us a calibration... try to use it.
+        public void setVerticesFromPCB(Vector2[,,] newVerts)
+        {
+            
+            if (perfectVertices != null && slicesX * slicesY == newVerts.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
+                articulationX == newVerts.GetLength(1) &&
+                articulationY == newVerts.GetLength(2))
+            {
+                vertices = newVerts;
+                return;
+            }
+
+            if (perfectVertices == null) //we are still in menu, just supply this data.
+            {
+                vertices = newVerts;
+                return;
+            }
+
+            canvas._setCalibration(vertices); //force it back to ours, something was incompatible with the user settings.
+
         }
 
 
@@ -291,14 +305,17 @@ namespace hypercube
         //}
 
 
-
-        public void resetOriginalVertexOffsets(bool alsoNonOriginal = false)
+        //1 to reset perfect slices, 0 to reset calibrated slices
+        public void resetVertexData(bool perfectSlices)
         {
             selectionS = selectionX = selectionY = 0; //reset selection
 
             int sliceCount = slicesX * slicesY;
-            vertices = new Vector2[sliceCount, articulationX, articulationY];
-            perfectVertices = new Vector2[sliceCount, articulationX, articulationY];
+            
+            if (perfectSlices)
+                perfectVertices = new Vector2[sliceCount, articulationX, articulationY];
+            else
+                vertices = new Vector2[sliceCount, articulationX, articulationY];
 
             float sliceW = 1f/ slicesX;
             float sliceH = 1f/ slicesY;
@@ -320,8 +337,9 @@ namespace hypercube
                         for (int ax = 0; ax < articulationX; ax++)
                         {
                             sliceIndex = x + (y * slicesX);
-                            perfectVertices[sliceIndex, ax, ay ] =   new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
-                            if (alsoNonOriginal)
+                            if (perfectSlices)
+                                perfectVertices[sliceIndex, ax, ay ] =   new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
+                            else
                                 vertices[sliceIndex, ax, ay] =      new Vector2(sliceX + (ax * aW), sliceY + (ay * aH));
                         }
                     }
@@ -931,6 +949,89 @@ namespace hypercube
         }
 
 
+        public IEnumerator saveSettings()
+        {
+            messageWindow.showMessage("Attempting to SAVE...");
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+
+            dataFileDict d = canvas.GetComponent<dataFileDict>();
+
+            //touch panel
+            if (input.touchPanel == null || !d)
+                sb.Append("Save to PCB: <color=#ff0000>FAIL</color>\n");
+            else
+            {
+                input.touchPanel.serial.readDataAsString = true;
+
+                string basicSettingsStr = d.getDataAsString();
+                yield return input.touchPanel._writeSettings(basicSettingsStr);
+                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                    sb.Append("Save settings to to PCB: <color=#00ff00>SUCCESS</color>\n");
+                else
+                    sb.Append("Save settings to PCB: <color=#ff0000>FAIL</color>\n");
+
+
+                yield return input.touchPanel._writeSlices(simplifySlices(perfectVertices), false);//perfect slices
+                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                    sb.Append("Save perfect slices to PCB: <color=#00ff00>SUCCESS</color>\n");
+                else
+                    sb.Append("Save perfect slices to PCB: <color=#ff0000>FAIL</color>\n");
+
+
+
+       
+                 yield return input.touchPanel._writeSlices(vertices, true);//calibrated slices
+                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                    sb.Append("Save calibrated slices to PCB: <color=#00ff00>SUCCESS</color>\n");
+                else
+                    sb.Append("Save calibrated slices to PCB: <color=#ff0000>FAIL</color>\n");
+
+                input.touchPanel.serial.readDataAsString = false;
+            }
+
+
+            //usb save
+            string configPath = "";
+            if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.basicSettingsFileName, out configPath))
+                sb.Append("Save to USB: <color=#ff0000>FAIL</color>");
+            else
+            {
+                d.fileName = configPath;
+                if (d.save())
+                    sb.Append("Save settings to USB: <color=#00ff00>SUCCESS</color>\n");
+                else
+                    sb.Append("Save settings to USB: <color=#ff0000>FAIL</color>\n");
+
+                if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.perfectSlicesFileName, out configPath))
+                    sb.Append("Save perfect slices to USB: <color=#ff0000>FAIL</color>\n");
+                else
+                {
+                    byte[] fileBytes = utils.vert2Bin(perfectVertices);
+                    System.IO.File.WriteAllBytes(configPath, fileBytes);
+                    sb.Append("Save perfect slices to USB: <color=#00ff00>SUCCESS</color>\n");
+                }
+
+                if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.calibratedSlicesFileName, out configPath))
+                    sb.Append("Save calibrated slices to USB: <color=#ff0000>FAIL</color>\n");
+                else
+                {
+                    byte[] fileBytes = utils.vert2Bin(vertices);
+                    System.IO.File.WriteAllBytes(configPath, fileBytes);
+                    sb.Append("Save calibrated slices to USB: <color=#00ff00>SUCCESS</color>\n");
+
+
+                    string rawPath = System.IO.Path.GetDirectoryName(configPath);
+                    int w = d.getValueAsInt("volumeResX", 1920);
+                    int h = d.getValueAsInt("volumeResY", 1080);
+                    canvas.generateSullyTextures(w, h, rawPath);
+                    sb.Append("Writing sully textures to: " + rawPath + "\n");
+                }
+
+            }
+
+            messageWindow.showMessage(sb.ToString());
+        }
 
     }
 }

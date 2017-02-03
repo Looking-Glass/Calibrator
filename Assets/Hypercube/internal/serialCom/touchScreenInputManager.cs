@@ -145,7 +145,7 @@ public class touchScreenInputManager  : streamedInputManager
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     serial.readDataAsString = false; //we got what we want now lets go back
-                    basicConfigData = toks[1];
+                    input._get().GetComponent<castMesh>().setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
                 }
                 else if (data.StartsWith("data1::") && data.EndsWith("::done"))
                 {
@@ -153,22 +153,47 @@ public class touchScreenInputManager  : streamedInputManager
                     serial.readDataAsString = false; //we got what we want now lets go back
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
-                        input._get().GetComponent<castMesh>()._setCalibration(verts);
+                    {
+                            input._get().GetComponent<castMesh>()._setCalibration(verts);
+#if HYPERCUBE_DEV 
+                            vertexCalibrator v = GameObject.FindObjectOfType<vertexCalibrator>(); //if we are calibrating, the calibrator needs to know about previous calibrations
+                            if (v) v.setVerticesFromPCB(verts);
+#endif
+                    }
+
                     else
-                        Debug.LogWarning("Received faulty 'perfect' vertex data");
+                    Debug.LogWarning("Received faulty 'perfect' vertex data");
+
                 }
-                else if (data.StartsWith("data2::") && data.EndsWith("::done"))
+                    else if (data.StartsWith("data2::") && data.EndsWith("::done"))
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     serial.readDataAsString = false; //we got what we want now lets go back
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
+                    {
                         input._get().GetComponent<castMesh>()._setCalibration(verts);
+#if HYPERCUBE_DEV
+                        vertexCalibrator v = GameObject.FindObjectOfType<vertexCalibrator>(); //if we are calibrating, the calibrator needs to know about previous calibrations
+                        if (v) v.setVerticesFromPCB(verts);
+#endif
+                    }
+
                     else
                         Debug.LogWarning("Received faulty 'calibrated' vertex data");
                 }
-                    
-                return;
+#if HYPERCUBE_DEV
+                else if (data.StartsWith("mode::recording::"))
+                {
+                    _recordingMode = true;
+                }
+                else if (data.StartsWith("recording::done"))
+                {
+                    _recordingMode = false;
+                }
+#endif
+
+                    return;
             }
 
 
@@ -233,55 +258,107 @@ public class touchScreenInputManager  : streamedInputManager
 
     }
 
-    //code related to i/o of config and calibration data on the pcb
-    #region 
-
-    //the basic settings stored on the PCB
-    string basicConfigData = null;
-    public bool _getConfigData(ref dataFileDict d)
-    {
-        if (basicConfigData == null)
-            return false;
-
-        if (d.loadFromString(basicConfigData))
-            return true;
-
-        return false;
-    }
-
-
-    //Vector2[,,] sliceData = null;
-    //public bool _applyHardwareCalibration(castMesh c )
-    //{
-    //        if (sliceData == null)
-    //            return false;
-
-    //        c.setCalibration(sliceData);
-    //        return true;        
-    //}
-
-       
+//code related to i/o of config and calibration data on the pcb
+#region IO to PCB
 
 
 #if HYPERCUBE_DEV
 
-    public bool _writeSlices(Vector2[,,] d, bool sullied)
+    bool _recordingMode = false;
+    float serialTimeoutIO = 5f;
+    public enum pcbState
     {
-        if (serial == null || !serial.isConnected)
-            return false;
+        INVALID = 0,
+        SUCCESS,
+        FAIL,
+        WORKING
+    }
+    public pcbState pcbIoState = pcbState.INVALID;
+    public IEnumerator _writeSettings(string settingsData)
+    {
+        float startTime = Time.timeSinceLevelLoad;
+        if (serial != null && serial.isConnected)
+        {
+            pcbIoState = pcbState.WORKING;
+            serial.readDataAsString = true;
+            _recordingMode = false;
 
-        //prepare the pcb to accept our data
-        if (sullied)
-            serial.SendSerialMessage("write2");
-        else
-            serial.SendSerialMessage("write1"); //perfect slices
+            //prepare the pcb to accept our data
+            serial.SendSerialMessage("write0"); //perfect slices
 
-         serial.SendSerialMessage(utils.vert2Bin(d).ToString());
+            while (!_recordingMode)
+            {
+                if (_serialTimeOutCheck(startTime))
+                    yield break;
+                yield return pcbIoState;
+            }
 
-        return true;
+            serial.SendSerialMessage(settingsData);
+
+            while (_recordingMode)//don't exit until we are done.
+            {
+                if (_serialTimeOutCheck(startTime))
+                    yield break;
+                yield return pcbIoState;
+            }
+            pcbIoState = pcbState.SUCCESS;
+            yield break;
+        }
+        pcbIoState = pcbState.FAIL;
+    }
+
+    public IEnumerator _writeSlices(Vector2[,,] d, bool sullied)
+    {
+        
+        float startTime = Time.timeSinceLevelLoad;
+        if (serial != null && serial.isConnected)
+        {
+            pcbIoState = pcbState.WORKING;
+            serial.readDataAsString = true;
+            _recordingMode = false;
+
+            //prepare the pcb to accept our data
+            if (sullied)
+                serial.SendSerialMessage("write2");
+            else
+                serial.SendSerialMessage("write1"); //perfect slices
+
+            while (!_recordingMode)
+            {
+                if (_serialTimeOutCheck(startTime))
+                    yield break;
+                 yield return pcbIoState;
+            }
+
+            serial.SendSerialMessage(System.Text.Encoding.UTF8.GetString(utils.vert2Bin(d)));
+
+            while (_recordingMode)//don't exit until we are done.
+            {
+                if (_serialTimeOutCheck(startTime))
+                    yield break;
+                yield return pcbIoState;
+            }
+            pcbIoState = pcbState.SUCCESS;
+            yield break;
+        }
+        pcbIoState = pcbState.FAIL;
+    }
+
+    public bool _serialTimeOutCheck(float startTime)
+    {
+        if (Time.timeSinceLevelLoad - startTime > serialTimeoutIO)
+        {
+            pcbIoState = pcbState.FAIL;
+            serial.readDataAsString = false;
+            _recordingMode = false;
+            return true;
+        }
+
+        return false;
     }
 #endif
-        #endregion
+
+ #endregion
 
 
 #endif

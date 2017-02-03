@@ -106,9 +106,6 @@ namespace hypercube
             }
         }
 
-#if HYPERCUBE_DEV //allow access to calibrator
-        public 
-#endif
         bool searchForSerialComs()
         {
             if (getIsStillSearchingForSerial()) //we are still searching.

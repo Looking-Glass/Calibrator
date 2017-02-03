@@ -64,28 +64,24 @@ public class dataFileDict : MonoBehaviour {
     /// <param name="_key">the associative key</param>
     /// <param name="_val">the value you want the key to have</param>
     /// <returns>returns true if it set the value of the key, returns false if it added the key.</returns>
-    public virtual bool setValue(string _key, string _val) 
-    {
-        return setValue(_key, _val, true);
-    }
 
-    public virtual bool setValue(string _key, int _val)
+    public virtual bool setValue(string _key, int _val, bool addIfMissing = true)
     {
-        return setValue(_key, _val.ToString());
+        return setValue(_key, _val.ToString(), addIfMissing);
     }
-    public virtual bool setValue(string _key, short _val)
+    public virtual bool setValue(string _key, short _val, bool addIfMissing = true)
     {
-        return setValue(_key, _val.ToString());
+        return setValue(_key, _val.ToString(), addIfMissing);
     }
-    public virtual bool setValue(string _key, float _val)
+    public virtual bool setValue(string _key, float _val, bool addIfMissing = true)
     {
-        return setValue(_key, _val.ToString());
+        return setValue(_key, _val.ToString(), addIfMissing);
     }
-    public virtual bool setValue(string _key, bool _val)
+    public virtual bool setValue(string _key, bool _val, bool addIfMissing = true)
     {
-        return setValue(_key, _val.ToString());
+        return setValue(_key, _val.ToString(), addIfMissing);
     }
-    public virtual bool setValue(string _key, string _val, bool addIfMissing) //more intuitively named override
+    public virtual bool setValue(string _key, string _val, bool addIfMissing = true) //more intuitively named override
     {
         if (readOnly)
         {
@@ -235,28 +231,35 @@ public class dataFileDict : MonoBehaviour {
         return true;
     }
 
-    public virtual void save() //save to disk, note that comments are lost
+    public virtual bool save() //save to disk, note that comments are lost
     {
         if (fileName == "")
         {
             Debug.Log("Tried to save dataFileDict component in: " + this.name + ", but the fileName has not been set.");
-            return;
+            return false;
         }
         else if (readOnly)
         {
             Debug.Log("WARNING: Tried to save dataFileDict component in: " + this.name + ", but it is set to readOnly. Ignoring the save() call.");
-            return;
+            return false;
         }
 
         using (System.IO.StreamWriter file = new System.IO.StreamWriter(@fileName))
         {
-            string a = "";
-            foreach (var pair in keyPairs)
-            {
-                a += pair.Key + "=" + pair.Value + "\n";
-            }
+            string a = getDataAsString();
             file.WriteLine(a);  
         }
+        return true;
+    }
+
+    public virtual string getDataAsString()
+    {
+        string a = "";
+        foreach (var pair in keyPairs)
+        {
+            a += pair.Key + "=" + pair.Value + "\n";
+        }
+        return a;
     }
 
 

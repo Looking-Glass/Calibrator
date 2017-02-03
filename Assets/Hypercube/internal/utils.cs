@@ -82,15 +82,18 @@ namespace hypercube
         {
             List<byte> outData = new List<byte>();
 
-            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(0))); //header
-            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(1)));
-            outData.AddRange(System.BitConverter.GetBytes(d.GetLength(2)));
+            int slices = d.GetLength(0);
+            int ax = d.GetLength(1);
+            int ay = d.GetLength(2);
+            outData.AddRange(System.BitConverter.GetBytes(slices)); //header
+            outData.AddRange(System.BitConverter.GetBytes(ax));
+            outData.AddRange(System.BitConverter.GetBytes(ay));
 
-            for (int s = 0; s < d.GetLength(0); s++)  //data
+            for (int s = 0; s < slices; s++)  //data
             {
-                for (int y = 0; y < d.GetLength(1); y++)
+                for (int y = 0; y < ay; y++)
                 {
-                    for (int x = 0; x < d.GetLength(2); x++)
+                    for (int x = 0; x < ax; x++)
                     {
                         outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].x));
                         outData.AddRange(System.BitConverter.GetBytes(d[s, x, y].y));

@@ -18,6 +18,8 @@ namespace hypercube
         public UnityEngine.UI.Dropdown articulationX;
         public UnityEngine.UI.Dropdown articulationY;
 
+        public UnityEngine.UI.Toggle fpga;
+
         public castMesh canvas;
 
         public UnityEngine.UI.Text vertCalculation;
@@ -25,6 +27,11 @@ namespace hypercube
         public UnityEngine.UI.Text sliceCount;
 
         void OnEnable()
+        {
+            reloadDataFile();
+        }
+
+        public void reloadDataFile() //if we get delayed info from pcb
         {
             if (!canvas)
                 return;
@@ -43,9 +50,11 @@ namespace hypercube
             slicesX.text = d.getValueAsInt("slicesX", 1).ToString();
             slicesY.text = d.getValueAsInt("slicesY", 10).ToString();
 
+            fpga.isOn = d.getValueAsBool("useFPGA", false);
+
             //add the given options defined in vertexCalibrator.articulations
             System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData> options = new System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData>();
-            foreach(int a in vertexCalibrator.articulations)
+            foreach (int a in vertexCalibrator.articulations)
                 options.Add(new UnityEngine.UI.Dropdown.OptionData(a.ToString()));
             articulationX.options = options;
             articulationY.options = options;
@@ -132,7 +141,9 @@ namespace hypercube
             d.setValue("articulationX", vertexCalibrator.articulations[articulationX.value]);
             d.setValue("articulationY", vertexCalibrator.articulations[articulationY.value]);
 
-           
+            d.setValue("useFPGA", fpga.isOn);
+
+
             //set the res, if it is different.
             int resXpref =  d.getValueAsInt("volumeResX", 1920);
             int resYpref = d.getValueAsInt("volumeResY", 1080);
