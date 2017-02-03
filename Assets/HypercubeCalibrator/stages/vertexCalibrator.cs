@@ -92,6 +92,8 @@ namespace hypercube
             articulationX = d.getValueAsInt("articulationX", 33);
             articulationY = d.getValueAsInt("articulationY", 17);
 
+            selectionS = selectionX = selectionY = 0;
+
             //if something is wrong or incoherent, reset everything to some default.
             //this should almost never happen.
             if (slicesX < 1)
@@ -107,10 +109,9 @@ namespace hypercube
             resetVertexData(true); //reset just perfect data data
 
             if (vertices == null || (
-                canvas.hasCalibration && 
-                slicesX * slicesY == vertices.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
-                articulationX == vertices.GetLength(1) &&
-                articulationY == vertices.GetLength(2)
+                slicesX * slicesY != vertices.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
+                articulationX != vertices.GetLength(1) &&
+                articulationY != vertices.GetLength(2)
                 ))
             {
                 resetVertexData(false); //change the calibrated vertices
