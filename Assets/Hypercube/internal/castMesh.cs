@@ -29,7 +29,6 @@ namespace hypercube
         public Vector3 aspectZ { get; private set; }
 
         public bool hasUSBBasic { get; private set; }
-        public bool askedForPCBCalibration { get; private set; }
         public bool hasCalibration { get; private set; }
         private string pcbSettings = "";
         public void setPCBbasicSettings(string _pcbSettings)
@@ -114,7 +113,6 @@ namespace hypercube
         private void Awake()
         {
             hasUSBBasic = false;
-            askedForPCBCalibration = false;
             hasCalibration = false;
         }
 
@@ -309,28 +307,14 @@ namespace hypercube
         {
             if (!hasCalibration)
             {
-                if (!askedForPCBCalibration && input.touchPanel != null) //the touch panel pcb can store our calibration.  keep trying to get it if it isn't null.
+                //we don't have calibration from usb, if we have pcbSettings try using them
+                if (input.touchPanel != null && pcbSettings != "") 
                 {
-                    
-                    if (pcbSettings != "") //this will not be blank if we have received data0 (the basic settings) from the pcb (input.findSearialComUpdate asks the pcb for this)... if we have, go ahead and ask for the calibration.
-                    {
-                        dataFileDict d = GetComponent<dataFileDict>();
-                        if (!d.loadFromString(pcbSettings))
-                            Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt. Asking for calibration anyhow...");
+                    dataFileDict d = GetComponent<dataFileDict>();
+                    if (!d.loadFromString(pcbSettings))
+                        Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt.");
 
-                        applyLoadedSettings(d);
-
-                        askedForPCBCalibration = true; //only ask once
-
-                        if (input.touchPanel.serial.readDataAsString != true)
-                            input.touchPanel.serial.readDataAsString = true; 
-                        if (d.getValueAsBool("useFPGA", false))
-                            input.touchPanel.serial.SendSerialMessage("read1"); //ask the serial panel for the 'perfect' slices
-                        else
-                            input.touchPanel.serial.SendSerialMessage("read2"); //ask for calibrated slices (much larger)
-                        
-                        //the response to read1/read2 are then handled by touchScreenInputManager.Update()
-                    }                      
+                    applyLoadedSettings(d);                 
                 }              
             }
 

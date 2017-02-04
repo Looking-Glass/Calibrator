@@ -967,18 +967,18 @@ namespace hypercube
                 sb.Append("Save to PCB: <color=#ff0000>FAIL</color>\n");
             else
             {
-                input.touchPanel.serial.readDataAsString = true;
+                input.forceStringRead = true;
 
                 string basicSettingsStr = d.getDataAsString();
-                yield return input.touchPanel._writeSettings(basicSettingsStr);
-                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                yield return input._get()._writeSettings(basicSettingsStr);
+                if (input.pcbIoState == input.pcbState.SUCCESS)
                     sb.Append("Save settings to to PCB: <color=#00ff00>SUCCESS</color>\n");
                 else
                     sb.Append("Save settings to PCB: <color=#ff0000>FAIL</color>\n");
 
 
-                yield return input.touchPanel._writeSlices(simplifySlices(perfectVertices), false);//perfect slices
-                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                yield return input._get()._writeSlices(simplifySlices(perfectVertices), false);//perfect slices
+                if (input.pcbIoState == input.pcbState.SUCCESS)
                     sb.Append("Save perfect slices to PCB: <color=#00ff00>SUCCESS</color>\n");
                 else
                     sb.Append("Save perfect slices to PCB: <color=#ff0000>FAIL</color>\n");
@@ -986,13 +986,13 @@ namespace hypercube
 
 
        
-                 yield return input.touchPanel._writeSlices(vertices, true);//calibrated slices
-                if (input.touchPanel.pcbIoState == touchScreenInputManager.pcbState.SUCCESS)
+                 yield return input._get()._writeSlices(vertices, true);//calibrated slices
+                if (input.pcbIoState == input.pcbState.SUCCESS)
                     sb.Append("Save calibrated slices to PCB: <color=#00ff00>SUCCESS</color>\n");
                 else
                     sb.Append("Save calibrated slices to PCB: <color=#ff0000>FAIL</color>\n");
 
-                input.touchPanel.serial.readDataAsString = false;
+                input.forceStringRead = false;
             }
 
 

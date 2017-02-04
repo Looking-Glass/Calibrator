@@ -42,17 +42,17 @@ public class SerialController : MonoBehaviour
     [Tooltip("Maximum number of failed connections before disabling component. ")]
     public int maxFailuresAllowed = 7;
 
-    private bool _readDataAsString = true;
-    public bool readDataAsString
-    {
-        get { return _readDataAsString; }
-        set
-        {
-            _readDataAsString = value;
-            if (serialThread != null)
-                serialThread.readDataAsString = _readDataAsString;
-        }
-    }
+    //private bool _readDataAsString = true;
+    //public bool readDataAsString
+    //{
+    //    get { return _readDataAsString; }
+    //    set
+    //    {
+    //        _readDataAsString = value;
+    //        if (serialThread != null)
+    //            serialThread.readDataAsString = _readDataAsString;
+    //    }
+    //}
 
     public bool isConnected  {get; private set;}
 
@@ -87,7 +87,6 @@ public class SerialController : MonoBehaviour
     void OnEnable()
     {
         serialThread = new SerialThread(portName, baudRate, reconnectionDelay, maxUnreadMessages);
-        serialThread.readDataAsString = readDataAsString;
 
         thread = new Thread(new ThreadStart(serialThread.RunForever));
         thread.Start();

@@ -26,18 +26,18 @@ namespace hypercube
         }
         bool sentForcedInit = false;
 
-        public SerialController getSerialInput()
+        public stringInputManager getSerialInput()
         {
             return testSubject;
         }
-        SerialController testSubject = null;
+        stringInputManager testSubject = null;
 
         serialPortType type = serialPortType.SERIAL_UNKNOWN;
 
         public void identifyPort(SerialController s)
         {
-            testSubject = s;
-            testSubject.readDataAsString = true;
+            testSubject = new stringInputManager(s);
+            //testSubject.readDataAsString = true;
             timer = 0f;
             type = serialPortType.SERIAL_WORKING;
             sentForcedInit = false;
@@ -50,17 +50,18 @@ namespace hypercube
             if (testSubject == null)
                 return serialPortType.SERIAL_UNKNOWN;
 
-            if (type != serialPortType.SERIAL_WORKING || !testSubject.readDataAsString)
+            if (type != serialPortType.SERIAL_WORKING)
                 return type;
 
             if (timer > timeOut)
                 return serialPortType.SERIAL_UNKNOWN;
 
+
             timer += deltaTime;
 
             //when we first connect...
             //this will tell the chip to give us an init, even if it isn't mechanically resetting (just in case, for example on osx which does not mechanically reset the chip on connection)
-            if (!sentForcedInit && testSubject.isConnected)
+            if (!sentForcedInit && testSubject.serial.isConnected)
             {
 #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
                 
@@ -69,7 +70,9 @@ namespace hypercube
                 sentForcedInit = true;
             }
 
-            string data = testSubject.ReadSerialMessage();
+            testSubject.update(false);
+
+            string data = testSubject.readMessage();
             while (data != null)
             {
                 if (debug)
@@ -87,7 +90,7 @@ namespace hypercube
                     //TODO add any other kinds of serial ports that need ID here.
                 }
 
-                data = testSubject.ReadSerialMessage();
+                data = testSubject.readMessage();
             }
 
             return type;

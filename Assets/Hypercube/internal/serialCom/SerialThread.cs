@@ -26,7 +26,7 @@ public class SerialThread
     private int delayBeforeReconnecting;
     private int maxUnreadMessages;
 
-    public bool readDataAsString = true;
+    //public bool readDataAsString = true;
 
     // Object from the .Net framework used to communicate with serial devices.
     private SerialPort serialPort;
@@ -237,15 +237,15 @@ public class SerialThread
             // this line so it eventually reaches the Message Listener.
             // Otherwise, discard the line.
 
-            if (readDataAsString)
-            {
-                string inputMessage = serialPort.ReadLine();
-                if (inputMessage != null && inputQueue.Count < maxUnreadMessages)
-                {
-                    inputQueue.Enqueue(inputMessage);
-                }
-                return;
-            }
+            //if (readDataAsString)
+            //{
+            //    string inputMessage = serialPort.ReadLine();
+            //    if (inputMessage != null && inputQueue.Count < maxUnreadMessages)
+            //    {
+            //        inputQueue.Enqueue(inputMessage);
+            //    }
+            //    return;
+            //}
         }
         catch (TimeoutException)
         {

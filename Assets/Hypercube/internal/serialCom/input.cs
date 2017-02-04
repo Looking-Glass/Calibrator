@@ -37,14 +37,22 @@ namespace hypercube
                 Debug.LogWarning("Can't get input from Volume because no ports were detected! Confirm that Volume is connected via USB.");
         }
 
+#if HYPERCUBE_DEV
+        public
+#endif
+        static bool forceStringRead = false; //can be used to force the string input manager to update instead of the regular streamed pcb input (used for calibration handshaking when writing to pcb)
+
         public int baudRate = 57600;
         public int reconnectionDelay = 500;
         public int maxUnreadMessage = 5;
         public int maxAllowedFailure = 3;
         public bool debug = false;
 
+        public float touchPanelFirmwareVersion { get; private set; }
         public static touchScreenInputManager touchPanel { get; private set;}  
         serialPortFinder[] portSearches; //we wait for a handshake to know which serial port is which.
+
+        protected stringInputManager touchPanelStringManager; //used to get data and settings from the touch panel
 
         //these keep track of all touchScreen targets, and hence the in input system can send them user input data as it is received.
         static HashSet<touchScreenTarget> eventTargets = new HashSet<touchScreenTarget>();
@@ -148,8 +156,14 @@ namespace hypercube
         float connectTimer = 0f;
         void Update()
         {
-            if (touchPanel == null)
+            if (touchPanel != null && touchPanel.serial.enabled && !forceStringRead) //normal path
+                touchPanel.update(debug);
+            else if (touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
             {
+                updateGetSettingsFromPCB();
+            }
+            else //still searching for serial ports.
+            {                   
                 connectTimer += Time.deltaTime;
                 if (getIsStillSearchingForSerial())
                     findSearialComUpdate(Time.deltaTime);
@@ -160,11 +174,75 @@ namespace hypercube
                 }
                 return;
             }
-            else if (touchPanel.serial.enabled)
-                touchPanel.update(debug);
+
         }
 
-        
+        //handle PCB during period where we are just getting config data from it.
+        void updateGetSettingsFromPCB()
+        {
+            touchPanelStringManager.update(debug);
+
+            string data = touchPanelStringManager.readMessage();
+
+            while (data != null && data != "")
+            {
+                if (data.StartsWith("data0::") && data.EndsWith("::done"))
+                {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    input._get().GetComponent<castMesh>().setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
+                    if (toks[1].Contains("useFPGA=True"))
+                        touchPanelStringManager.serial.SendSerialMessage("read1"); //give us the perfect slices.  If it uses an FPGA
+                    else
+                        touchPanelStringManager.serial.SendSerialMessage("read2"); //ask for the calibrated slices.
+                }
+                else if (data.StartsWith("data1::") && data.EndsWith("::done"))
+                {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    Vector2[,,] verts = null;
+                    if (utils.bin2Vert(toks[1], out verts))
+                    {
+                        castMesh cm = input._get().GetComponent<castMesh>();
+                        cm._setCalibration(verts);
+#if HYPERCUBE_DEV
+                        if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
+#endif
+                        touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
+                    }
+
+                    else
+                        Debug.LogWarning("Received faulty 'perfect' vertex data");
+
+                }
+                else if (data.StartsWith("data2::") && data.EndsWith("::done"))
+                {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    Vector2[,,] verts = null;
+                    if (utils.bin2Vert(toks[1], out verts))
+                    {
+                        castMesh cm = input._get().GetComponent<castMesh>();
+                        cm._setCalibration(verts);
+#if HYPERCUBE_DEV
+                        if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
+#endif
+                        touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
+                    }
+                    else
+                        Debug.LogWarning("Received faulty 'calibrated' vertex data");
+                }
+#if HYPERCUBE_DEV
+                else if (data.StartsWith("mode::recording::"))
+                {
+                    _recordingMode = true;
+                }
+                else if (data.StartsWith("recording::done"))
+                {
+                    _recordingMode = false;
+                }
+#endif
+                data = touchPanelStringManager.readMessage();
+            }
+
+        }
 
 
         //we haven't found all of our ports, keep trying.
@@ -180,24 +258,26 @@ namespace hypercube
                 serialPortType t = portSearches[i].update(deltaTime);
                 if (t == serialPortType.SERIAL_UNKNOWN) //a timeout or some other problem.  This is likely not a port related to us.
                 {
-                    GameObject.Destroy(portSearches[i].getSerialInput());
+                    GameObject.Destroy(portSearches[i].getSerialInput().serial);
                     portSearches[i] = null;
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
-                {                  
-                    touchPanel = new touchScreenInputManager(portSearches[i].getSerialInput(), portSearches[i].firmwareVersion); //we found the touch panel. Hand off the serialInput component to it's proper, custom handler
-                    touchPanel.serial.readDataAsString = true;
-                    touchPanel.serial.SendSerialMessage("read0"); //send for the config asap. 
+                {
+                    touchPanelFirmwareVersion = portSearches[i].firmwareVersion;
+                    touchPanelStringManager = portSearches[i].getSerialInput(); //we found the touch panel, get calibration and settings data off of it, and then pass it off to the touchScreenInput handler after done.
+
+                    touchPanelStringManager.serial.SendSerialMessage("read0"); //send for the config asap. 
                     portSearches[i] = null; //stop checking this port for relevance.                   
                     if (debug)
                         Debug.Log("Connected to and identified touch panel PCB hardware.");
+
                     endPortSearch(); //this version of the tools only knows how to use touchpanel serial port. we are done.
                 }
                 else if (t == serialPortType.SERIAL_WORKING)
                 {
-                    if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().isConnected) //timeout
+                    if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().serial.isConnected) //timeout
                     {
-                        Destroy(portSearches[i].getSerialInput());
+                        Destroy(portSearches[i].getSerialInput().serial);
                         portSearches[i] = null; //stop bothering with this guy.
                     }
                     //do nothing
@@ -212,7 +292,7 @@ namespace hypercube
             {
                 if (portSearches[i] != null)
                 {
-                    GameObject.Destroy(portSearches[i].getSerialInput());
+                    GameObject.Destroy(portSearches[i].getSerialInput().serial);
                     portSearches[i] = null;
                 }
             }
@@ -253,39 +333,113 @@ namespace hypercube
             sc.maxUnreadMessages = maxUnreadMessage;
             sc.maxFailuresAllowed = maxAllowedFailure;
             sc.enabled = true;
-            sc.readDataAsString = true;
+            //sc.readDataAsString = true;
             return sc;
         }
 
 
-        //public static bool isHardwareReady() //can the touchscreen hardware get/send commands?
-        //{
-        //    if (!instance)
-        //        return false;
+        //code related to i/o of config and calibration data on the pcb
+        #region IO to PCB
 
-        //    if (touchPanel != null)
-        //    {
-        //        if (!touchPanel.serial.enabled)
-        //            touchPanel.serial.readDataAsString = true; //we must wait for another init:done before we give the go-ahead to get raw data again.
-        //        else if (touchPanel.serial.readDataAsString == false)
-        //            return true;
-        //    }
 
-        //    return false;
-        //}
+#if HYPERCUBE_DEV
 
-        //static bool sendCommandToHardware(string cmd)
-        //{
-        //    if (isHardwareReady())
-        //    {
-        //        touchPanel.serial.SendSerialMessage(cmd + "\n\r");
-        //        return true;
-        //    }
-        //    else
-        //        Debug.LogWarning("Can't send message to hardware, it is either not yet initialized, disconnected, or malfunctioning.");
+        bool _recordingMode = false;
+        float serialTimeoutIO = 5f;
+        public enum pcbState
+        {
+            INVALID = 0,
+            SUCCESS,
+            FAIL,
+            WORKING
+        }
+        public static pcbState pcbIoState = pcbState.INVALID;
+        public IEnumerator _writeSettings(string settingsData)
+        {
+            float startTime = Time.timeSinceLevelLoad;
+            if (touchPanelStringManager != null && touchPanelStringManager.serial.isConnected)
+            {
+                pcbIoState = pcbState.WORKING;
+                _recordingMode = false;
 
-        //    return false;
-        //}
+                //prepare the pcb to accept our data
+                touchPanelStringManager.serial.SendSerialMessage("write0"); //perfect slices
+
+                while (!_recordingMode)
+                {
+                    if (_serialTimeOutCheck(startTime))
+                        yield break;
+                    yield return pcbIoState;
+                }
+
+                touchPanelStringManager.serial.SendSerialMessage(settingsData);
+
+                while (_recordingMode)//don't exit until we are done.
+                {
+                    if (_serialTimeOutCheck(startTime))
+                        yield break;
+                    yield return pcbIoState;
+                }
+                pcbIoState = pcbState.SUCCESS;
+                yield break;
+            }
+            pcbIoState = pcbState.FAIL;
+        }
+
+        public IEnumerator _writeSlices(Vector2[,,] d, bool sullied)
+        {
+
+            float startTime = Time.timeSinceLevelLoad;
+            if (touchPanelStringManager != null && touchPanelStringManager.serial.isConnected)
+            {
+                pcbIoState = pcbState.WORKING;
+                _recordingMode = false;
+
+                //prepare the pcb to accept our data
+                if (sullied)
+                    touchPanelStringManager.serial.SendSerialMessage("write2");
+                else
+                    touchPanelStringManager.serial.SendSerialMessage("write1"); //perfect slices
+
+                while (!_recordingMode)
+                {
+                    if (_serialTimeOutCheck(startTime))
+                        yield break;
+                    yield return pcbIoState;
+                }
+
+                string saveData;
+                utils.vert2Bin(d, out saveData);
+                touchPanelStringManager.serial.SendSerialMessage(saveData);
+
+                while (_recordingMode)//don't exit until we are done.
+                {
+                    if (_serialTimeOutCheck(startTime))
+                        yield break;
+                    yield return pcbIoState;
+                }
+                pcbIoState = pcbState.SUCCESS;
+                yield break;
+            }
+            pcbIoState = pcbState.FAIL;
+        }
+
+        public bool _serialTimeOutCheck(float startTime)
+        {
+            if (Time.timeSinceLevelLoad - startTime > serialTimeoutIO)
+            {
+                pcbIoState = pcbState.FAIL;
+                _recordingMode = false;
+                return true;
+            }
+
+            return false;
+        }
+#endif
+
+        #endregion
+
+
 
 #else //We use HYPERCUBE_INPUT because I have to choose between this odd warning below, or immediately throwing a compile error for new users who happen to have the wrong settings (IO.Ports is not included in .Net 2.0 Subset).  This solution is odd, but much better than immediately failing to compile.
     
