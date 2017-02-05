@@ -17,9 +17,9 @@ namespace hypercube
 
         public basicSettingsAdjustor basicSettings;  //make it possible to let it know if there were updates from the pcb
 
-        public renderCondition renderDots = renderCondition.ALL_SLICES;
-        public renderCondition renderNum = renderCondition.CURRENT_SLICE;
-        public renderCondition renderBgImage = renderCondition.OFF;
+        public renderCondition renderDots;
+        public renderCondition renderNum;
+        public renderCondition renderBgImage;
         
         public Material[] bgMaterials;
         private int currentBgMaterial = 0;
@@ -80,6 +80,14 @@ namespace hypercube
         GameObject[] dotMeshes;
 
         Vector3 lastMousePos; //used to calculate mouse controls
+
+        void Awake()
+        {
+            renderDots = renderCondition.ALL_SLICES;
+            renderNum = renderCondition.CURRENT_SLICE;
+            renderBgImage = renderCondition.OFF;
+
+        }
 
         public override void OnEnable()
         {
