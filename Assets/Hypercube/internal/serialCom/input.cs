@@ -195,39 +195,31 @@ namespace hypercube
                     else
                         touchPanelStringManager.serial.SendSerialMessage("read2"); //ask for the calibrated slices.
                 }
-                else if (data.StartsWith("data1::") && data.EndsWith("::done"))
+                else if (data.StartsWith("data") && data.EndsWith("::done"))
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
                     {
                         castMesh cm = input._get().GetComponent<castMesh>();
-                        cm._setCalibration(verts);
+                        if (!cm.hasCalibration) //don't push it through if we already have usb calibration
+                        {
+                            cm._setCalibration(verts);
 #if HYPERCUBE_DEV
-                        if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
+                            if (cm.calibratorV) cm.calibratorV.setLoadedVertices(verts, false); //if we are calibrating, the calibrator needs to know about previous calibrations                    
+                        }
+                        else
+                        {
+                            cm.calibratorBasic.pcbText.text = "<color=#00ff00>PCB</color>";  //let the dev know the pcb has viable data.
 #endif
-                        touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
+                        }
                     }
-
-                    else
-                        Debug.LogWarning("Received faulty 'perfect' vertex data");
-
-                }
-                else if (data.StartsWith("data2::") && data.EndsWith("::done"))
-                {
-                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
-                    Vector2[,,] verts = null;
-                    if (utils.bin2Vert(toks[1], out verts))
-                    {
-                        castMesh cm = input._get().GetComponent<castMesh>();
-                        cm._setCalibration(verts);
-#if HYPERCUBE_DEV
-                        if (cm.calibratorV) cm.calibratorV.setVerticesFromPCB(verts); //if we are calibrating, the calibrator needs to know about previous calibrations
-#endif
-                        touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
-                    }
-                    else
-                        Debug.LogWarning("Received faulty 'calibrated' vertex data");
+                    else if (data != "data1::::done" && data.StartsWith("data1::") )
+                        Debug.LogWarning("Received faulty 'perfect' vertex data from PCB");
+                    else if (data != "data2::::done" && data.StartsWith("data2::"))
+                        Debug.LogWarning("Received faulty 'calibrated' vertex data from PCB");   
+                        
+                    touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
                 }
 #if HYPERCUBE_DEV
                 else if (data.StartsWith("mode::recording::"))

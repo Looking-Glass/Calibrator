@@ -7,17 +7,25 @@ namespace hypercube
 {
     public class utils
     {
-        public static bool getConfigPath(string relativePathToConfig)
+        public static string formatPathToOS(string path)
+        {
+            path = path.Replace('\\', Path.DirectorySeparatorChar);
+            path = path.Replace('/', Path.DirectorySeparatorChar);
+            return path;
+        }
+
+
+        public static bool getDoesConfigFileExist(string relativePathToConfig)
         {
             string temp;
-            return getConfigPath(relativePathToConfig, out temp);
+            return getConfigPathToFile(relativePathToConfig, out temp);
         }
+
         //this method is used to figure out which drive is the usb flash drive attached to Volume, and then returns that path so that our settings can load normally from there.
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
-        public static bool getConfigPath(string relativePathToConfig, out string fullPath)
+        public static bool getConfigPathToFile(string relativePathToConfig, out string fullPath)
         {
-            relativePathToConfig = relativePathToConfig.Replace('\\', Path.DirectorySeparatorChar);
-            relativePathToConfig = relativePathToConfig.Replace('/', Path.DirectorySeparatorChar);
+            relativePathToConfig = formatPathToOS(relativePathToConfig);
 
             string[] drives = System.Environment.GetLogicalDrives();
             foreach (string drive in drives)
@@ -32,14 +40,13 @@ namespace hypercube
             return false;
         }
 #else  //osx,  TODO: linux untested in standalone
-        public static bool getConfigPath(string relativePathToConfig, out string fullPath)        
+        public static bool getConfigPathToFile(string relativePathToConfig, out string fullPath)        
         {                        
             string[] directories = Directory.GetDirectories("/Volumes/");
             foreach (string d in directories)
             {
                 string fixedPath = d + "/" + relativePathToConfig;
-                fixedPath = fixedPath.Replace('\\', Path.DirectorySeparatorChar);
-                fixedPath = fixedPath.Replace('/', Path.DirectorySeparatorChar);
+                fixedPath = formatPathToOS(fixedPath);
 
                 FileInfo f = new FileInfo (fixedPath);
                 if (f.Exists)                
@@ -112,49 +119,70 @@ namespace hypercube
         //converts stored binary calibration data into a proper array for the castMesh
         public static bool bin2Vert(string base64binary, out Vector2[,,] outData)
         {
-            byte[] rawBytes = System.Convert.FromBase64String(base64binary);
+            byte[] rawBytes = null;
+            outData = null;
+            try
+            {
+                rawBytes = System.Convert.FromBase64String(base64binary);
+            }
+            catch 
+            {           
+                return false;
+            }
+
             //byte[] rawBytes = System.Text.Encoding.Unicode.GetBytes(inBinaryData); //use this line if hte string contains the raw data itself
             return bin2Vert(rawBytes, out outData);
         }
         public static bool bin2Vert(byte[] rawBytes, out Vector2[,,] outData)
         {
-
-            int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
-            int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
-            int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
-
-            if (rawBytes.Length % 4 != 0)
-            {
-                Debug.LogWarning("The data received for the slices is malformed.");
-                outData = null;
+            outData = null;
+            if (rawBytes == null)
                 return false;
-            }
 
-            int count = rawBytes.Length / 4;
-            if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
+            try
             {
-                Debug.LogWarning("The data received for the slices does not match the expected array length.");
-                outData = null;
-                return false;
-            }
+                int sliceCount = System.BitConverter.ToInt32(rawBytes, 0);
+                int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
+                int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
 
-            outData = new Vector2[sliceCount, xArticulation, yArticulation];
-
-            for (int s = 0; s < sliceCount; s++)
-            {
-                for (int y = 0; y < yArticulation; y++)
+                if (rawBytes.Length % 4 != 0)
                 {
-                    for (int x = 0; x < xArticulation; x++)
-                    {
-                        int i = (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
-                        i *= 4;
-                        i += 12;//start at the end of the header.
+                    Debug.LogWarning("The data received for the slices is malformed.");
+                    return false;
+                }
 
-                        outData[s, x, y] = new Vector2();
-                        outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
-                        outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 4);
+                int count = rawBytes.Length / 4;
+                if (count - 3 != sliceCount * xArticulation * yArticulation * 2) //the count -3 = don't count the header info   ... the *2 = x and also y
+                {
+                    Debug.LogWarning("The data received for the slices does not match the expected array length.");
+                    return false;
+                }
+
+                outData = new Vector2[sliceCount, xArticulation, yArticulation];
+
+                for (int s = 0; s < sliceCount; s++)
+                {
+                    for (int y = 0; y < yArticulation; y++)
+                    {
+                        for (int x = 0; x < xArticulation; x++)
+                        {
+                            int i = (s * xArticulation * yArticulation * 2) + (y * xArticulation * 2) + (x * 2);
+                            i *= 4;
+                            i += 12;//start at the end of the header.
+
+                            outData[s, x, y] = new Vector2();
+                            outData[s, x, y].x = System.BitConverter.ToSingle(rawBytes, i);
+                            outData[s, x, y].y = System.BitConverter.ToSingle(rawBytes, i + 4);
+                        }
                     }
                 }
+            }
+            catch 
+            {
+#if HYPERCUBE_DEV
+                Debug.LogWarning("Exception caught in bin2Vert conversion!");
+#endif
+                return false;
             }
 
             return true;

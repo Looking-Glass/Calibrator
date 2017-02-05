@@ -16,8 +16,14 @@ namespace hypercube
 			canvas.updateMesh ();
 
 		}
+        public virtual void OnDisable()
+        {
+            canvas.currentCalibrator = null;
+            canvas.updateMesh();
 
-		public virtual Material[] getMaterials()
+        }
+
+        public virtual Material[] getMaterials()
 		{
 			return null;
 		}

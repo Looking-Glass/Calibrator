@@ -13,7 +13,9 @@ namespace hypercube
     [RequireComponent(typeof(dataFileDict))]
     public class castMesh : MonoBehaviour
     {
+#if HYPERCUBE_DEV
         public Shader sullyColorShader;
+#endif
 
         public readonly string usbConfigPath = "volumeCalibrationData";
         public readonly string basicSettingsFileName = "settings_basic.txt";
@@ -39,7 +41,7 @@ namespace hypercube
  #if HYPERCUBE_DEV
             calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
 #endif
-    }
+        }
 
 
     public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
@@ -163,7 +165,7 @@ namespace hypercube
 
             bool foundCalibrationFile = false;
            
-            if (hypercube.utils.getConfigPath(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
+            if (hypercube.utils.getConfigPathToFile(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
             {
                 hasUSBBasic = true;
 #if HYPERCUBE_DEV
@@ -173,17 +175,17 @@ namespace hypercube
                 string calibrationFile = "";
                 if (d.getValueAsBool("FPGA", false))
                 {
-                    if (hypercube.utils.getConfigPath(usbConfigPath + "/" + perfectSlicesFileName, out calibrationFile))
+                    if (hypercube.utils.getConfigPathToFile(usbConfigPath + "/" + perfectSlicesFileName, out calibrationFile))
                         foundCalibrationFile = true;
-                    else if (utils.getConfigPath(perfectSlicesFileName, out calibrationFile))
+                    else if (utils.getConfigPathToFile(perfectSlicesFileName, out calibrationFile))
                         foundCalibrationFile = true;
                 }
                 else
                 {
                     calibrationFile = calibratedSlicesFileName;
-                    if (utils.getConfigPath(usbConfigPath + "/" + calibratedSlicesFileName, out calibrationFile))
+                    if (utils.getConfigPathToFile(usbConfigPath + "/" + calibratedSlicesFileName, out calibrationFile))
                         foundCalibrationFile = true;
-                    else if (utils.getConfigPath(calibratedSlicesFileName, out calibrationFile))
+                    else if (utils.getConfigPathToFile(calibratedSlicesFileName, out calibrationFile))
                         foundCalibrationFile = true;
                 }
 
@@ -198,7 +200,8 @@ namespace hypercube
                     if (utils.bin2Vert(fileContents, out v) && _setCalibration(v))
                     {
 #if HYPERCUBE_DEV
-                            calibratorBasic.usbText.text = "<color=#00ff00>USB</color>";
+                        calibratorBasic.reloadDataFile(); //we may have received a delayed update from the pcb, make sure any gui in the calibration is updated.
+                        calibratorV.setLoadedVertices(v, true);
 #endif
                     }
                     else
@@ -248,10 +251,6 @@ namespace hypercube
             Shader.SetGlobalFloat("_sliceBrightnessG", 1f);
             Shader.SetGlobalFloat("_sliceBrightnessB", 1f);
 
-#if HYPERCUBE_DEV  //only relevant for calibration env
-            basicSettingsAdjustor b = GameObject.FindObjectOfType<basicSettingsAdjustor>();
-            if (b) b.reloadDataFile(); //we may have received a delayed update from the pcb, make sure any gui in the calibration is updated.
-#endif
         }
 
 
@@ -548,9 +547,15 @@ namespace hypercube
             return vertCount;
         }
 
-
-        public void generateSullyTextures(int w, int h, string filePath)
+#if HYPERCUBE_DEV
+        public bool generateSullyTextures(int w, int h, string filePath)
         {
+            if (!sullyColorShader)
+            {
+                Debug.LogWarning("No sully shader defined!");
+                return false;
+            }
+
             Camera c = GetComponent<Camera>();
             RenderTexture rtt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGBFloat);
             c.targetTexture = rtt;
@@ -566,19 +571,30 @@ namespace hypercube
             Color clr = new Color();
             Color32[] xColors = new Color32[w * h];
             Color32[] yColors = new Color32[w * h];
-            int n = 0;
-            for (int y = h - 1; y >= 0; y--)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    clr = rTex.GetPixel(x, y);
-                    xColors[n] = floatToColor(clr.r * w);
-                    yColors[n] = floatToColor(
-                        ((clr.g / slices) * h) +  //the position within the current slice
-                        (((clr.b * 1000) / (float)slices) * (float)h));  //plus the slice's height position within the entire image. The 10 is because the slice number is encoded as .1 per slice
 
-                    n++;
+            try
+            {
+
+                int n = 0;
+                for (int y = h - 1; y >= 0; y--)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        clr = rTex.GetPixel(x, y);
+                        if (!floatToColor(clr.r * w, out xColors[n]))
+                            return false;
+                        if (!floatToColor(
+                           ((clr.g / slices) * h) +  //the position within the current slice
+                           (((clr.b * 1000) / (float)slices) * (float)h), out yColors[n]))  //plus the slice's height position within the entire image. The 10 is because the slice number is encoded as .1 per slice
+                            return false;
+                        n++;
+                    }
                 }
+            }
+            catch 
+            {
+                Debug.LogError("Something was wrong with the sully texture.  Check that the proper shader was set in the castMesh sullyColorShader.");
+                return false;
             }
 
             Texture2D xTex = new Texture2D(w, h, TextureFormat.RGBAFloat, false);
@@ -595,13 +611,18 @@ namespace hypercube
 
             // testMaterial.SetTexture("_MainTex", xTex);  //test
             // testMaterial2.SetTexture("_MainTex", yTex);
+            return true;
         }
 
         //this method maps a float into a rgb 24 bit color space with max value of 4096
-        static Color32 floatToColor(float v)
+        static bool floatToColor(float v, out Color32 c)
         {
             if (v < 0 || v > 4096)
-                Debug.LogError("Invalid value of " + v + " passed into the sully calibration texture generation! Must be 0-4096");
+            {
+                Debug.LogWarning("Invalid value of " + v + " passed into the sully calibration texture generation! Must be 0-4096");
+                c = new Color32();
+                return false;
+            }
 
             byte r = (byte)((int)v >> 4); //this assumes the maximum value will never pass 0-4096 (12 bits)
             byte g = (byte)(((int)v & 0x0F) << 4); //the least significant part of the integer part of the float stored at the start of g
@@ -609,10 +630,11 @@ namespace hypercube
             int fracV = (int)(4096 * rawFrac);  //just the fractional part, scaled up to 12 bits
             g |= (byte)(fracV >> 8); //the most significant part of fractional part of the float stored in the back of g
             byte b = (byte)(fracV & 0xFF);
-            return new Color32(r, g, b, byte.MaxValue);
+            c = new Color32(r, g, b, byte.MaxValue);
+            return true;
 
         }
-
+#endif
     }
 
 }

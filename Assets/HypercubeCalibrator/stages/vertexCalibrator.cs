@@ -10,8 +10,8 @@ namespace hypercube
         public enum renderCondition
         {
             OFF = 0,
-            ALL_SLICES,
             CURRENT_SLICE,
+            ALL_SLICES,         
             INVALID
         }
 
@@ -115,6 +115,7 @@ namespace hypercube
                 ))
             {
                 resetVertexData(false); //change the calibrated vertices
+                messageWindow.showMessage("A previous calibration was loaded, but it was incompatible with the settings given in the menu so it will be ignored.");
             }
 
 
@@ -130,27 +131,37 @@ namespace hypercube
         }
 
         //pcb just gave us a calibration... try to use it.
-        public void setVerticesFromPCB(Vector2[,,] newVerts)
+        public void setLoadedVertices(Vector2[,,] newVerts, bool pcbUsb)
         {
-            
-            if (perfectVertices != null && slicesX * slicesY == newVerts.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
-                articulationX == newVerts.GetLength(1) &&
-                articulationY == newVerts.GetLength(2))
-            {
-                vertices = newVerts;
+            if (newVerts == null)
                 return;
-            }
 
-            if (perfectVertices == null) //we are still in menu, just supply this data.
+
+            if (perfectVertices == null) //we haven't opened the vertexCalibration menu yet, just supply this data.
             {
+                if (pcbUsb)
+                    basicSettings.usbText.text = "<color=#00ff00>USB</color>";
+                else
+                    basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
+
                 vertices = newVerts;
-                basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
-                return;
+                canvas._setCalibration(vertices);
             }
+            else if ( slicesX * slicesY == newVerts.GetLength(0) &&  //we are currently editing vertices. if any of these don't match, ignore this new data.
+            articulationX == newVerts.GetLength(1) &&
+            articulationY == newVerts.GetLength(2))
+            {                         
+                if (pcbUsb)
+                    basicSettings.usbText.text = "<color=#00ff00>USB</color>";
+                else
+                    basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
 
-            if (canvas._setCalibration(vertices)) //force it back to ours, something was incompatible with the user settings.
-                basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
-
+                vertices = newVerts; //update the current verts with the new ones.
+                canvas._setCalibration(vertices);
+            }
+            else //perfectVertices != null && the data doesn't match.
+                messageWindow.showMessage("Calibration was found, but was incompatible with the settings from the menu so it will be ignored.");
+         
         }
 
 
@@ -998,7 +1009,7 @@ namespace hypercube
 
             //usb save
             string configPath = "";
-            if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.basicSettingsFileName, out configPath))
+            if (!utils.getConfigPathToFile(canvas.usbConfigPath + "/" + canvas.basicSettingsFileName, out configPath))
                 sb.Append("Save to USB: <color=#ff0000>FAIL</color>");
             else
             {
@@ -1006,31 +1017,41 @@ namespace hypercube
                 if (d.save())
                     sb.Append("Save settings to USB: <color=#00ff00>SUCCESS</color>\n");
                 else
+                {
                     sb.Append("Save settings to USB: <color=#ff0000>FAIL</color>\n");
+                    yield break; //stop trying to save, if we couldn't do the regular settings
+                }
 
-                if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.perfectSlicesFileName, out configPath))
-                    sb.Append("Save perfect slices to USB: <color=#ff0000>FAIL</color>\n");
-                else
+                string basePath = System.IO.Path.GetDirectoryName(configPath);
+
+                configPath = utils.formatPathToOS(basePath + "/" + canvas.perfectSlicesFileName);
+                //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.perfectSlicesFileName, out configPath))
+                //    sb.Append("Save perfect slices to USB: <color=#ff0000>FAIL</color>\n");
+                //else
                 {
                     byte[] fileBytes = utils.vert2Bin(perfectVertices);
                     System.IO.File.WriteAllBytes(configPath, fileBytes);
                     sb.Append("Save perfect slices to USB: <color=#00ff00>SUCCESS</color>\n");
                 }
 
-                if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.calibratedSlicesFileName, out configPath))
-                    sb.Append("Save calibrated slices to USB: <color=#ff0000>FAIL</color>\n");
-                else
+                configPath = utils.formatPathToOS(basePath + "/" + canvas.calibratedSlicesFileName);
+                //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.calibratedSlicesFileName, out configPath))
+                //    sb.Append("Save calibrated slices to USB: <color=#ff0000>FAIL</color>\n");
+                //else
                 {
                     byte[] fileBytes = utils.vert2Bin(vertices);
                     System.IO.File.WriteAllBytes(configPath, fileBytes);
                     sb.Append("Save calibrated slices to USB: <color=#00ff00>SUCCESS</color>\n");
 
 
-                    string rawPath = System.IO.Path.GetDirectoryName(configPath);
+                    //sully textures
+                    string rawPath = utils.formatPathToOS(basePath);
                     int w = d.getValueAsInt("volumeResX", 1920);
                     int h = d.getValueAsInt("volumeResY", 1080);
-                    canvas.generateSullyTextures(w, h, rawPath);
-                    sb.Append("Writing sully textures to: " + rawPath + "\n");
+                    if (canvas.generateSullyTextures(w, h, rawPath))
+                        sb.Append("Wrote sully textures to: <color=#00ff00>" + rawPath + "</color>\n");
+                    else
+                        sb.Append("Write sully textures: <color=#ff0000>FAIL</color>\n");
                 }
 
             }
