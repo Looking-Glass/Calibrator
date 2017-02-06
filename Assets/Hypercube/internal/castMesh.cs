@@ -15,6 +15,7 @@ namespace hypercube
     {
 #if HYPERCUBE_DEV
         public Shader sullyColorShader;
+        public RenderTexture testingTexture;
 #endif
 
         public readonly string usbConfigPath = "volumeCalibrationData";
@@ -24,6 +25,7 @@ namespace hypercube
 
         public string volumeModelName { get; private set; }
         public float volumeHardwareVer { get; private set; }
+        public static castMesh canvas { get; private set; } //access the existing canvas from anywhere
 
         //stored aspect ratio multipliers, each with the corresponding axis set to 1
         public Vector3 aspectX { get; private set; }
@@ -116,6 +118,8 @@ namespace hypercube
         {
             hasUSBBasic = false;
             hasCalibration = false;
+
+            canvas = this; //note that castMesh is in effect a singleton, since the prefab also carries the 'input' class which is a singleton.
         }
 
         void Start()
