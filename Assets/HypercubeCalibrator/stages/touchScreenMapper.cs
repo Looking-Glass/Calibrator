@@ -97,22 +97,22 @@ namespace hypercube
             if (stage == calibrationStage.STEP_touchCorner1)
             {
                 arrow.transform.localRotation = Quaternion.identity;
-                arrow.transform.localPosition = cam.transform.TransformPoint(-.5f, .5f, -.5f);
+                arrow.transform.localPosition = cam.transform.TransformPoint(-.5f, .5f, -.4f);
             }
             else if (stage == calibrationStage.STEP_touchCorner2)
             {
                 arrow.transform.localRotation = Quaternion.Euler(0f, 0f, 270f);
-                arrow.transform.localPosition = cam.transform.TransformPoint(.5f, .5f, -.5f);
+                arrow.transform.localPosition = cam.transform.TransformPoint(.5f, .5f, -.4f);
             }
             else if (stage == calibrationStage.STEP_touchCorner3)
             {
                 arrow.transform.localRotation = Quaternion.Euler(0f, 0f, 180f);
-                arrow.transform.localPosition = cam.transform.TransformPoint(.5f, -.5f, -.5f);
+                arrow.transform.localPosition = cam.transform.TransformPoint(.5f, -.5f, -.4f);
             }
             else if (stage == calibrationStage.STEP_touchCorner4)
             {
                 arrow.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-                arrow.transform.localPosition = cam.transform.TransformPoint(-.5f, -.5f, -.5f);
+                arrow.transform.localPosition = cam.transform.TransformPoint(-.5f, -.5f, -.4f);
             }
             else if (stage == calibrationStage.STEP_save)
             {

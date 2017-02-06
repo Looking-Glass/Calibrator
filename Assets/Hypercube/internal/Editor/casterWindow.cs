@@ -108,6 +108,9 @@ namespace hypercube
             if (canvas == null || canvasCam == null)
             {
                 canvas = castMesh.canvas;
+                if (!canvas)
+                    canvas = GameObject.FindObjectOfType<castMesh>();
+
                 if (canvas)
                 {
                     canvasCam = canvas.GetComponent<Camera>();

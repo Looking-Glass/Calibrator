@@ -468,7 +468,7 @@ namespace hypercube
                 updateTextures();
             }
 
-            if (Input.GetKey(KeyCode.Mouse1))
+            if (Input.GetKey(KeyCode.Mouse1)) //resize dots
             {
                 Vector3 diff = lastMousePos - Input.mousePosition;
                 if (diff != Vector3.zero)
@@ -478,15 +478,101 @@ namespace hypercube
                 }
             }
 
-			//move a vert with mouse
-			if (Input.GetKey(KeyCode.Mouse0))
+            //reset all
+            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKey(KeyCode.R))
+            {
+                vertices = perfectVertices;
+                canvas._setCalibration(vertices);
+            }
+
+
+
+            //move a vert with mouse
+            if (Input.GetKey(KeyCode.Mouse0))
 			{
 				Vector3 diff = Input.mousePosition - lastMousePos;
 				if (diff != Vector3.zero)
 				{
 					diff *= Time.deltaTime * sensitivity;
 
-                    if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) //move this vert on all slices
+                    if (Input.GetKey(KeyCode.E))  //adjust slice spacing.
+                    {
+                        for (int s = 0; s < slicesX * slicesY; s++)
+                        {
+                            int yMod = s / slicesX; //each row of slices moves up more
+                            float yOffset = diff.y * yMod;
+                            for (int y = 0; y < articulationY; y++)
+                            {
+                                for (int x = 0; x < articulationX; x++)
+                                {
+                                    vertices[s, x, y].y += yOffset;
+                                }
+                            }
+                        }
+                    }
+                    
+                    else if (Input.GetKey(KeyCode.X)) //move all verts along this x
+                    {
+                        //TODO interpolate the y movements along their sister y's, while only using x translation from the mouse (instead of brutishly moving them over)
+                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                        {
+                            for (int s = 0; s < slicesX * slicesY; s++) //all slices
+                            {
+                                for (int optY = 0; optY < yOptions[displayLevelY].Length; optY++)
+                                {
+                                    moveVert(s, displayLevelX, selectionX, displayLevelY, optY, diff.x, diff.y);
+                                }
+                            }
+                        }
+                        else //current slice only.
+                        {
+                            for (int optY = 0; optY < yOptions[displayLevelY].Length; optY++)
+                            {
+                                moveVert(selectionS, displayLevelX, selectionX, displayLevelY, optY, diff.x, diff.y);
+                            }
+                        }
+                    }
+                    else if (Input.GetKey(KeyCode.C)) //move all verts along this y
+                    {
+                        //TODO interpolate the y movements along their sister y's, while only using x translation from the mouse (instead of brutishly moving them over)
+                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                        {
+                            for (int s = 0; s < slicesX * slicesY; s++) //all slices
+                            {
+                                for (int optX = 0; optX < xOptions[displayLevelX].Length; optX++)
+                                {
+                                    moveVert(s, displayLevelX, optX, displayLevelY, selectionY, diff.x, diff.y);
+                                }
+                            }
+                        }
+                        else //current slice only.
+                        {
+                            for (int optX = 0; optX < xOptions[displayLevelX].Length; optX++)
+                            {
+                                moveVert(selectionS, displayLevelX, optX, displayLevelY, selectionY, diff.x, diff.y);
+                            }
+                        }
+                    }
+                    else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && 
+                        (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))) //move every vert /offset all
+                    {
+                        if (getXFlip(selectionS))
+                            diff.x = -diff.x;
+                        if (getYFlip(selectionS))
+                            diff.y = -diff.y;
+                        for (int s = 0; s < slicesX * slicesY; s++)
+                        {
+                            for (int y = 0; y < articulationY; y++)
+                            {
+                                for (int x = 0; x < articulationX; x++)
+                                {
+                                    vertices[s, x, y].x += diff.x;
+                                    vertices[s, x, y].y += diff.y;
+                                }
+                            }
+                        }
+                    }
+                    else if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) //move this vert on all slices
                     {
                         int slices = slicesX * slicesY;
                         for (int s = 0; s < slices; s++)
@@ -510,7 +596,7 @@ namespace hypercube
                         }
                     }
                     else
-                        moveVert (selectionS, diff.x, diff.y);// move a single vert
+                        moveVert(selectionS, diff.x, diff.y);// move a single vert
 
 
 					canvas._setCalibration (vertices);
@@ -561,34 +647,40 @@ namespace hypercube
                 lastMousePos = Input.mousePosition;
         }
 
-		//lerps the appropriate unselected vertices
-		void moveVert(int slice, float xAmount, float yAmount)
+        //lerps the appropriate unselected vertices
+        void moveVert(int slice, float xAmount, float yAmount)
+        {
+            moveVert(slice, displayLevelX, selectionX, displayLevelY, selectionY, xAmount, yAmount);
+        }
+
+
+        void moveVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
 		{
             if (getXFlip(slice))
                 xAmount = -xAmount;
             if (getYFlip(slice))
                 yAmount = -yAmount;
 
-			int middleX = (int)xOptions[displayLevelX][selectionX];
-			int middleY = (int)yOptions[displayLevelY][selectionY];
+			int middleX = (int)xOptions[dispX][selX];
+			int middleY = (int)yOptions[dispY][selY];
 
 			//translate the middle vert 100% (and then don't change it later)
 			vertices [slice, middleX, middleY].x += xAmount; 
 			vertices [slice, middleX, middleY].y += yAmount;
 	
 			int left = middleX;
-			if (selectionX != 0)
-				left = (int)xOptions [displayLevelX] [selectionX - 1];
+			if (selX != 0)
+				left = (int)xOptions [dispX] [selX - 1];
 			int right = middleX; 
-			if (selectionX < xOptions [displayLevelX].Length - 1)
-				right = (int)xOptions [displayLevelX] [selectionX + 1];
+			if (selX < xOptions [dispX].Length - 1)
+				right = (int)xOptions [dispX] [selX + 1];
 
 			int top = middleY;
-			if (selectionY != 0)
-				top = (int)yOptions [displayLevelY] [selectionY - 1];
+			if (selY != 0)
+				top = (int)yOptions [dispY] [selY - 1];
 			int bottom = middleY; 
-			if (selectionY < yOptions [displayLevelY].Length - 1)
-				bottom = (int)yOptions [displayLevelY] [selectionY + 1];
+			if (selY < yOptions [dispY].Length - 1)
+				bottom = (int)yOptions [dispY] [selY + 1];
 
 			//now we know all verts that will be affected by this move.
 			//imagine now 4 quadrants, with the 'middle' vert in the center

@@ -41,7 +41,7 @@ namespace hypercube
                 Debug.LogWarning("PCB basic settings seem to have been asked for more than once!");
             pcbSettings = _pcbSettings;
  #if HYPERCUBE_DEV
-            calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
+           if (calibratorBasic) calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
 #endif
         }
 
@@ -173,7 +173,7 @@ namespace hypercube
             {
                 hasUSBBasic = true;
 #if HYPERCUBE_DEV
-                calibratorBasic.usbText.text = "<color=yellow>USB</color>";
+                if (calibratorBasic) calibratorBasic.usbText.text = "<color=yellow>USB</color>";
 #endif
 
                 string calibrationFile = "";
@@ -204,8 +204,8 @@ namespace hypercube
                     if (utils.bin2Vert(fileContents, out v) && _setCalibration(v))
                     {
 #if HYPERCUBE_DEV
-                        calibratorBasic.reloadDataFile(); //we may have received a delayed update from the pcb, make sure any gui in the calibration is updated.
-                        calibratorV.setLoadedVertices(v, true);
+                        if (calibratorBasic) calibratorBasic.reloadDataFile(); //we may have received a delayed update from the pcb, make sure any gui in the calibration is updated.
+                        if (calibratorV) calibratorV.setLoadedVertices(v, true);
 #endif
                     }
                     else
