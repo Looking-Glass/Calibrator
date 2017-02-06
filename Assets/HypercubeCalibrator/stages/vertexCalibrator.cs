@@ -116,11 +116,11 @@ namespace hypercube
 
             resetVertexData(true); //reset just perfect data data
 
-            if (vertices == null || (
-                slicesX * slicesY != vertices.GetLength(0) &&  //if any of these don't match, we need to rebuild the calibration from scratch.
-                articulationX != vertices.GetLength(1) &&
+            if (vertices == null || 
+                slicesX * slicesY != vertices.GetLength(0) ||  //if any of these don't match, we need to rebuild the calibration from scratch.
+                articulationX != vertices.GetLength(1) ||
                 articulationY != vertices.GetLength(2)
-                ))
+                )
             {
                 resetVertexData(false); //change the calibrated vertices
                 messageWindow.showMessage("A previous calibration was loaded, but it was incompatible with the settings given in the menu so it will be ignored.");
