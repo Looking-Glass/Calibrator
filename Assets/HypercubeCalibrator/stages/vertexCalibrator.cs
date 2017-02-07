@@ -22,7 +22,7 @@ namespace hypercube
         public renderCondition renderBgImage;
         
         public Material[] bgMaterials;
-        private int currentBgMaterial = 0;
+        public int currentBgMaterial;
 
 		public float sensitivity = .1f;
         public float dotSize;
@@ -47,7 +47,7 @@ namespace hypercube
 
         int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 		int displayLevelY = 0;
-        bool cubeMode = true; //cubeMode is basically displayLevel -1.  It only allows selection of the 8 corners of the cube, and a center point, and always interpolates everything
+        bool cubeMode = true; //cubeMode is basically displayLevel -1.  It only allows selection of the 4 corners of the first and last slice, and always interpolates everything across Z
 
 
         public GameObject dotParent;
@@ -414,10 +414,11 @@ namespace hypercube
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-                if (displayLevelX == 0 && displayLevelY == 0 && !cubeMode)
+                if (displayLevelX == 0 && displayLevelY == 0 && !cubeMode) //enter cubeMode
                 {
                     cubeMode = true;
                     updateTextures();
+                    selectionS = selectionS < slicesX * slicesY / 2 ? 0 : slicesX * slicesY - 1;  //make the slice selection snap to either 0 or last depending on which is closer to current
                     return;
                 }
 
@@ -468,16 +469,30 @@ namespace hypercube
             }
             else if (Input.GetKeyDown(KeyCode.R))
             {
+                if (cubeMode)
+                {
+                    selectionS = slicesX * slicesY - 1;
+                    updateTextures();
+                    return;
+                }
+
                 selectionS++;
-                if (selectionS >= slicesX * slicesY || cubeMode)
+                if (selectionS >= slicesX * slicesY) //loop around
                     selectionS = 0;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.F))
             {
+                if (cubeMode)
+                {
+                    selectionS = 0;
+                    updateTextures();
+                    return;
+                }
+                
                 selectionS--;
-                if (selectionS < 0 || cubeMode)
-                    selectionS = (slicesX * slicesY) - 1;
+                if (selectionS < 0)
+                    selectionS = (slicesX * slicesY) - 1; //loop around
                 updateTextures();
             }
 
@@ -523,7 +538,6 @@ namespace hypercube
                             }
                         }
                     }
-                    
                     else if (Input.GetKey(KeyCode.X)) //move all verts along this x
                     {
                         //TODO interpolate the y movements along their sister y's, while only using x translation from the mouse (instead of brutishly moving them over)
@@ -566,8 +580,8 @@ namespace hypercube
                             }
                         }
                     }
-                    else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && 
-                        (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))) //move every vert /offset all
+                    else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                             (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))) //move every vert /offset all
                     {
                         if (getXFlip(selectionS))
                             diff.x = -diff.x;
@@ -605,6 +619,28 @@ namespace hypercube
                             {
                                 vertices[selectionS, x, y].x += diff.x;
                                 vertices[selectionS, x, y].y += diff.y;
+                            }
+                        }
+                    }
+                    else if (cubeMode)
+                    {
+                        //cube mode is really a variant of the lowest mode. Here we lerp movement along the z edges
+                        int slices = slicesX * slicesY;
+
+                        if (selectionS == 0)
+                        {
+                            for (int s = 0; s < slices; s++)
+                            {
+                                float lerp = 1f - ((float)s / (float)slices);
+                                moveVert(s, diff.x * lerp, diff.y * lerp);
+                            }
+                        }
+                        else //we have a back slice selected, so slice 0 gets no influence here
+                        {
+                            for (int s = 0; s < slices; s++)
+                            {
+                                float lerp = (float)s / (float)slices;
+                                moveVert(s, diff.x * lerp, diff.y * lerp);
                             }
                         }
                     }
@@ -669,6 +705,9 @@ namespace hypercube
 
         void moveVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
 		{
+            if (xAmount == 0 && yAmount == 0)
+                return;
+            
             if (getXFlip(slice))
                 xAmount = -xAmount;
             if (getYFlip(slice))
@@ -973,14 +1012,23 @@ namespace hypercube
             renderCam.gameObject.SetActive(true);
             for (int s = 0; s < sliceCount; s++)
             {
-                if (!cubeMode)
-                    renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
-                else if (s == 0 || s == sliceCount - 1)
-                    renderSlice(s, 2, 2); // just draw the corners of the first and last slice.
+                 renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
             }
             renderCam.gameObject.SetActive(false);
         }
 
+/*        void blackOutTexture(int slice)
+        {
+            dotParent.SetActive(false);
+            sliceNumText.gameObject.SetActive(false);
+            background.SetActive(false);
+
+            renderCam.targetTexture = sliceTextures[slice];
+            renderCam.rect = new Rect(0f, 0f, 1f, 1f);
+            renderCam.Render();
+            renderCam.targetTexture = null;
+        }
+*/
         void renderSlice(int slice, int xDiv, int yDiv)
         {
             //first make sure we have the required number of dots.
@@ -1035,11 +1083,14 @@ namespace hypercube
             else
                 selectionMesh.transform.localPosition = new Vector3(0f, 0f, -10f); //hide it behind the camera
 
+
             selectionMesh.transform.localScale = new Vector3(dotSize, dotSize, dotSize); //y * dotOFfset
 
 
             //decide what to draw and what not to draw
-            if (renderDots == renderCondition.ALL_SLICES || (renderDots == renderCondition.CURRENT_SLICE && slice == selectionS))
+            if (cubeMode && slice != 0 && slice != (slicesX * slicesY) - 1) //only draw dots for first and last
+                dotParent.SetActive(false);
+            else if (renderDots == renderCondition.ALL_SLICES || (renderDots == renderCondition.CURRENT_SLICE && slice == selectionS))
                 dotParent.SetActive(true);
             else
                 dotParent.SetActive(false);
@@ -1056,6 +1107,17 @@ namespace hypercube
                 background.SetActive(true);
             else
                 background.SetActive(false);
+
+            if (cubeMode && slice == selectionS)
+            {
+                cubeModeMesh.gameObject.SetActive(true);
+                Vector3 cmPos = selectionMesh.transform.localPosition;
+                cmPos.z = 1.5f;
+                cubeModeMesh.SetPosition(0, cmPos);
+                cubeModeMesh.widthMultiplier = dotSize;
+            }
+            else
+                cubeModeMesh.gameObject.SetActive(false);
 
 
             renderCam.targetTexture = sliceTextures[slice];
