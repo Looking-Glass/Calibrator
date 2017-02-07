@@ -47,6 +47,8 @@ namespace hypercube
 
         int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 		int displayLevelY = 0;
+        bool cubeMode = true; //cubeMode is basically displayLevel -1.  It only allows selection of the 8 corners of the cube, and a center point, and always interpolates everything
+
 
         public GameObject dotParent;
         public TextMesh sliceNumText;
@@ -75,19 +77,13 @@ namespace hypercube
 
         public GameObject dotMesh;
         public GameObject selectionMesh;
+        public LineRenderer cubeModeMesh;
         public float scaleSensitivity = .01f;
 
         GameObject[] dotMeshes;
 
         Vector3 lastMousePos; //used to calculate mouse controls
 
-        void Awake()
-        {
-            renderDots = renderCondition.ALL_SLICES;
-            renderNum = renderCondition.CURRENT_SLICE;
-            renderBgImage = renderCondition.OFF;
-
-        }
 
         public override void OnEnable()
         {
@@ -396,6 +392,13 @@ namespace hypercube
 
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
             {
+                if (cubeMode) //get out of cubeMode into normal editing
+                {
+                    cubeMode = false;
+                    updateTextures();
+                    return;
+                }
+                
                 int oldX = displayLevelX;
                 int oldY = displayLevelY;
                 displayLevelX++;
@@ -411,6 +414,13 @@ namespace hypercube
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
+                if (displayLevelX == 0 && displayLevelY == 0 && !cubeMode)
+                {
+                    cubeMode = true;
+                    updateTextures();
+                    return;
+                }
+
                 int oldX = displayLevelX;
                 int oldY = displayLevelY;
                 displayLevelX--;
@@ -426,8 +436,9 @@ namespace hypercube
             }
             else if (Input.GetKeyDown(KeyCode.S))
             {
+                              
                 selectionY--;
-                if (selectionY < 0)
+                if (selectionY < 0 || cubeMode)
                     selectionY = 0;
 
                 updateTextures();
@@ -435,35 +446,37 @@ namespace hypercube
             else if (Input.GetKeyDown(KeyCode.W))
             {
                 selectionY++;
-                if (selectionY >= articulationY)
+                if (selectionY >= articulationY || cubeMode)
                     selectionY = articulationY - 1;
+
+
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.A))
             {
                 selectionX--;
-                if (selectionX < 0)
+                if (selectionX < 0 || cubeMode)
                     selectionX = 0;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.D))
             {
                 selectionX++;
-                if (selectionX >= articulationX)
+                if (selectionX >= articulationX || cubeMode)
                     selectionX = articulationX - 1;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.R))
             {
                 selectionS++;
-                if (selectionS >= slicesX * slicesY)
+                if (selectionS >= slicesX * slicesY || cubeMode)
                     selectionS = 0;
                 updateTextures();
             }
             else if (Input.GetKeyDown(KeyCode.F))
             {
                 selectionS--;
-                if (selectionS < 0)
+                if (selectionS < 0 || cubeMode)
                     selectionS = (slicesX * slicesY) - 1;
                 updateTextures();
             }
@@ -960,7 +973,10 @@ namespace hypercube
             renderCam.gameObject.SetActive(true);
             for (int s = 0; s < sliceCount; s++)
             {
-                renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
+                if (!cubeMode)
+                    renderSlice(s, xOptions[displayLevelX].Length, yOptions[displayLevelY].Length);
+                else if (s == 0 || s == sliceCount - 1)
+                    renderSlice(s, 2, 2); // just draw the corners of the first and last slice.
             }
             renderCam.gameObject.SetActive(false);
         }

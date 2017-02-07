@@ -47,12 +47,21 @@ namespace hypercube
         public int maxUnreadMessage = 5;
         public int maxAllowedFailure = 3;
         public bool debug = false;
+        public static bool _debug
+        {
+            get
+            {
+                if (!instance)
+                    return false;
+                return instance.debug;
+            }
+        }
 
         public float touchPanelFirmwareVersion { get; private set; }
         public static touchScreenInputManager touchPanel { get; private set;}  
         serialPortFinder[] portSearches; //we wait for a handshake to know which serial port is which.
 
-        protected stringInputManager touchPanelStringManager; //used to get data and settings from the touch panel
+        protected stringInputManager touchPanelStringManager; //used to get data and settings from the touch panel pcb
 
         //these keep track of all touchScreen targets, and hence the in input system can send them user input data as it is received.
         static HashSet<touchScreenTarget> eventTargets = new HashSet<touchScreenTarget>();

@@ -35,9 +35,6 @@ namespace hypercube
 
 public class touchScreenInputManager  : streamedInputManager
 {
-
-    
-
     float projectionWidth = 20f; //the physical size of the projection, in centimeters
     float projectionHeight = 12f;
     float projectionDepth = 20f;
@@ -90,13 +87,11 @@ public class touchScreenInputManager  : streamedInputManager
     //constructor
     public touchScreenInputManager( SerialController _serial) : base(_serial, new byte[]{255,255}, 100000)
     {
-
         touchScreens = new touchScreen[8]; 
         for (int t = 0; t < touchScreens.Length; t++)
         {
             touchScreens[t] = new touchScreen((touchScreenOrientation)t);
-        }
-        
+        }      
     }
 
     public void setTouchScreenDims(dataFileDict d)
@@ -127,6 +122,8 @@ public class touchScreenInputManager  : streamedInputManager
 
      public override void update(bool debug)
     {
+        if (!serial)
+            return;
 
         string data = serial.ReadSerialMessage();
         while (data != null && data != "")

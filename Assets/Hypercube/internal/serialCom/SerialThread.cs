@@ -143,7 +143,8 @@ public class SerialThread
                     // reading/writing to the device. Log the detailed message
                     // to the console and notify the listener too.
 #if HYPERCUBE_DEV
-                    Debug.LogWarning("Exception: " + ioe.Message + " StackTrace: " + ioe.StackTrace);
+                    if (hypercube.input._debug)
+                        Debug.LogWarning("Exception: " + ioe.Message + " StackTrace: " + ioe.StackTrace);
 #endif
                     inputQueue.Enqueue(SerialController.SERIAL_DEVICE_DISCONNECTED);
 

@@ -563,6 +563,7 @@ namespace hypercube
             Camera c = GetComponent<Camera>();
             RenderTexture rtt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGBFloat);
             c.targetTexture = rtt;
+            //c.targetTexture = testingTexture;
             c.RenderWithShader(sullyColorShader, "");
 
 

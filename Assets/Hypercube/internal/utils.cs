@@ -145,6 +145,13 @@ namespace hypercube
                 int xArticulation = System.BitConverter.ToInt32(rawBytes, 4);
                 int yArticulation = System.BitConverter.ToInt32(rawBytes, 8);
 
+                if (!System.BitConverter.IsLittleEndian)
+                {
+                    sliceCount = (int)reverseBytes((uint)sliceCount);
+                    xArticulation = (int)reverseBytes((uint)xArticulation);
+                    yArticulation = (int)reverseBytes((uint)yArticulation);
+                }
+
                 if (rawBytes.Length % 4 != 0)
                 {
                     Debug.LogWarning("The data received for the slices is malformed.");
@@ -186,6 +193,13 @@ namespace hypercube
             }
 
             return true;
+        }
+
+        //convert endianess
+        public static uint reverseBytes(uint value)
+        {
+            return (value & 0x000000FFU) << 24 | (value & 0x0000FF00U) << 8 |
+                (value & 0x00FF0000U) >> 8 | (value & 0xFF000000U) >> 24;
         }
 
     }
