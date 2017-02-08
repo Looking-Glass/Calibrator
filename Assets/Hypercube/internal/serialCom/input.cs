@@ -40,7 +40,7 @@ namespace hypercube
 #if HYPERCUBE_DEV
         public
 #endif
-        static bool forceStringRead = false; //can be used to force the string input manager to update instead of the regular streamed pcb input (used for calibration handshaking when writing to pcb)
+        static bool forceStringRead = true; //can be used to force the string input manager to update instead of the regular streamed pcb input (used for calibration handshaking when writing to pcb)
 
         public int baudRate = 57600;
         public int reconnectionDelay = 500;
@@ -58,8 +58,10 @@ namespace hypercube
         }
 
         public float touchPanelFirmwareVersion { get; private set; }
-        public static touchScreenInputManager touchPanel { get; private set;}  
+        public static touchScreenInputManager touchPanel { get; private set;}   
         serialPortFinder[] portSearches; //we wait for a handshake to know which serial port is which.
+
+        List<string> badSerialPorts = new List<string>();  //ports we already know are not what we are looking for.
 
         protected stringInputManager touchPanelStringManager; //used to get data and settings from the touch panel pcb
 
@@ -129,14 +131,38 @@ namespace hypercube
                 return false;
 
             serialComSearchTime = 0f;
-            string[] names = getPortNames();
+            string[] allNames = getPortNames();
 
-            if (names.Length == 0)
+            if (allNames.Length == 0)
                 return false;
 
-            portSearches = new serialPortFinder[names.Length];
+            //filter out ports we already know are or are not ours
+            List<string> names = new List<string>();
+            foreach (string n in allNames)
+            {
+                bool good = true;
+                foreach(string b in badSerialPorts)
+                {
+                    if (n == b)
+                    {
+                        good = false;
+                        break;
+                    }
+                }
+
+                if (!good)
+                    continue;
+
+                if (touchPanel != null && n == touchPanel.serial.portName)
+                    continue;
+
+                names.Add(n);
+            }
+
+            portSearches = new serialPortFinder[names.Count];
             for (int i = 0; i < portSearches.Length; i++)
             {
+ 
                 portSearches[i] = new serialPortFinder();
                 portSearches[i].debug = debug;
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
@@ -165,11 +191,14 @@ namespace hypercube
         float connectTimer = 0f;
         void Update()
         {
-            if (touchPanel != null && touchPanel.serial.enabled && !forceStringRead) //normal path
-                touchPanel.update(debug);
-            else if (touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
+
+            if (forceStringRead && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
             {
                 updateGetSettingsFromPCB();
+            }
+            else if (touchPanel != null && touchPanel.serial.enabled) //normal path
+            {
+                touchPanel.update(debug);
             }
             else //still searching for serial ports.
             {                   
@@ -228,7 +257,7 @@ namespace hypercube
                     else if (data != "data2::::done" && data.StartsWith("data2::"))
                         Debug.LogWarning("Received faulty 'calibrated' vertex data from PCB");   
                         
-                    touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); //we have what we want, now with this input will only get data from here
+                    forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
                 }
 #if HYPERCUBE_DEV
                 else if (data.StartsWith("mode::recording::"))
@@ -260,6 +289,7 @@ namespace hypercube
                 if (t == serialPortType.SERIAL_UNKNOWN) //a timeout or some other problem.  This is likely not a port related to us.
                 {
                     GameObject.Destroy(portSearches[i].getSerialInput().serial);
+                    badSerialPorts.Add(portSearches[i].getSerialInput().serial.portName);
                     portSearches[i] = null;
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
@@ -267,18 +297,25 @@ namespace hypercube
                     touchPanelFirmwareVersion = portSearches[i].firmwareVersion;
                     touchPanelStringManager = portSearches[i].getSerialInput(); //we found the touch panel, get calibration and settings data off of it, and then pass it off to the touchScreenInput handler after done.
 
+                    //also give it to the touchpanel, this will let other methods call input.touchpanel without getting a null, 
+                    //but it wont receive updates until we get a calibration.
+                    touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); 
+
                     touchPanelStringManager.serial.SendSerialMessage("read0"); //send for the config asap. 
                     portSearches[i] = null; //stop checking this port for relevance.                   
                     if (debug)
                         Debug.Log("Connected to and identified touch panel PCB hardware.");
 
-                    endPortSearch(); //this version of the tools only knows how to use touchpanel serial port. we are done.
+                    //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
+                    //if we ever need to find other ports, this should be removed so it can continue searching.
+                    endPortSearch(); 
                 }
                 else if (t == serialPortType.SERIAL_WORKING)
                 {
                     if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().serial.isConnected) //timeout
                     {
                         Destroy(portSearches[i].getSerialInput().serial);
+                        badSerialPorts.Add(portSearches[i].getSerialInput().serial.portName);
                         portSearches[i] = null; //stop bothering with this guy.
                     }
                     //do nothing
@@ -293,6 +330,7 @@ namespace hypercube
             {
                 if (portSearches[i] != null)
                 {
+                    badSerialPorts.Add(portSearches[i].getSerialInput().serial.portName); 
                     GameObject.Destroy(portSearches[i].getSerialInput().serial);
                     portSearches[i] = null;
                 }

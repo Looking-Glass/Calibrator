@@ -311,13 +311,14 @@ namespace hypercube
             if (!hasCalibration)
             {
                 //we don't have calibration from usb, if we have pcbSettings try using them
-                if (input.touchPanel != null && pcbSettings != "") 
+                if (pcbSettings != "" && input.touchPanel != null) 
                 {
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (!d.loadFromString(pcbSettings))
                         Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt.");
 
-                    applyLoadedSettings(d);                 
+                    applyLoadedSettings(d);
+                    pcbSettings = ""; //we applied them, let it be blank to keep this from iterating.
                 }              
             }
 
