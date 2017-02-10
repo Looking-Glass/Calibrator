@@ -48,6 +48,24 @@ namespace hypercube
         int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 		int displayLevelY = 0;
         bool cubeMode = true; //cubeMode is basically displayLevel -1.  It only allows selection of the 4 corners of the first and last slice, and always interpolates everything across Z
+        bool xOptionContains(int v)
+        {
+            foreach (int o in xOptions[displayLevelX])
+            {
+                if (v == o)
+                    return true;
+            }
+            return false;
+        }
+        bool yOptionContains(int v)
+        {
+            foreach (int o in yOptions[displayLevelY])
+            {
+                if (v == o)
+                    return true;
+            }
+            return false;
+        }
 
 
         public GameObject dotParent;
@@ -506,8 +524,29 @@ namespace hypercube
                 }
             }
 
+
+            //reset verts below current articulation level
+            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
+            {
+                for (int y = 0; y < articulationY; y++)
+                {
+                    if (!yOptionContains(y))
+                    {
+                        for (int x = 0; x < articulationX; x++)
+                        {
+                            if (!xOptionContains(x))
+                            {
+                                //"reset" this vert by moving it to its proper position based on the nearest active x values
+                            }
+                        }
+                    }
+                }
+                canvas._setCalibration(vertices);
+            }
             //reset all
-            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKey(KeyCode.R))
+            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                Input.GetKeyDown(KeyCode.R))
             {
                 vertices = perfectVertices;
                 canvas._setCalibration(vertices);
