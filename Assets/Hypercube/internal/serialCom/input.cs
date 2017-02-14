@@ -264,9 +264,15 @@ namespace hypercube
                 {
                     _recordingMode = true;
                 }
-                else if (data.StartsWith("recording::done"))
+                else if (data.EndsWith("::recording::done"))
                 {
+                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     _recordingMode = false;
+                    int dataWritten = dataFileDict.stringToInt( toks[2], -1);
+                    if (dataWritten == touchPanelStringManager._lastSentLargeMessageSize)
+                        pcbIoState = pcbState.SUCCESS;
+                    else
+                        pcbIoState = pcbState.FAIL;
                 }
 #endif
                 data = touchPanelStringManager.readMessage();
@@ -393,7 +399,7 @@ namespace hypercube
             WORKING
         }
         public static pcbState pcbIoState = pcbState.INVALID;
-        public IEnumerator _writeSettings(string settingsData)
+        public IEnumerator _writeSettings(string settingsData) //write this to the pcb
         {
             float startTime = Time.timeSinceLevelLoad;
             if (touchPanelStringManager != null && touchPanelStringManager.serial.isConnected)
@@ -402,7 +408,7 @@ namespace hypercube
                 _recordingMode = false;
 
                 //prepare the pcb to accept our data
-                touchPanelStringManager.serial.SendSerialMessage("write0"); //perfect slices
+                touchPanelStringManager.sendSerialMessage("write0"); //perfect slices
 
                 while (!_recordingMode)
                 {
@@ -411,7 +417,7 @@ namespace hypercube
                     yield return pcbIoState;
                 }
 
-                touchPanelStringManager.serial.SendSerialMessage(settingsData);
+                yield return touchPanelStringManager.sendLargeSerialMessage(settingsData, 128);
 
                 while (_recordingMode)//don't exit until we are done.
                 {
@@ -436,9 +442,9 @@ namespace hypercube
 
                 //prepare the pcb to accept our data
                 if (sullied)
-                    touchPanelStringManager.serial.SendSerialMessage("write2");
+                    touchPanelStringManager.sendSerialMessage("write2");
                 else
-                    touchPanelStringManager.serial.SendSerialMessage("write1"); //perfect slices
+                    touchPanelStringManager.sendSerialMessage("write1"); //perfect slices
 
                 while (!_recordingMode)
                 {
@@ -449,7 +455,7 @@ namespace hypercube
 
                 string saveData;
                 utils.vert2Bin(d, out saveData);
-                touchPanelStringManager.serial.SendSerialMessage(saveData);
+                yield return touchPanelStringManager.sendLargeSerialMessage(saveData, 128);
 
                 while (_recordingMode)//don't exit until we are done.
                 {
