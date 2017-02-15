@@ -64,7 +64,7 @@ namespace hypercube
             if (!sentForcedInit && testSubject.serial.isConnected)
             {
 #if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
-                WaitForSeconds(.1f);
+
                 testSubject.serial.SendSerialMessage("reping");  //OSX does not reset the serial port hardware on connect, so we need to get it to tell us again what it is.
 #endif
                 sentForcedInit = true;
