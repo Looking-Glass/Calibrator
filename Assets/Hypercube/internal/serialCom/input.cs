@@ -130,7 +130,6 @@ namespace hypercube
             if (getIsStillSearchingForSerial()) //we are still searching.
                 return false;
 
-            serialComSearchTime = 0f;
             string[] allNames = getPortNames();
 
             if (allNames.Length == 0)
@@ -167,8 +166,7 @@ namespace hypercube
                 portSearches[i].debug = debug;
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
             }
-
-            serialComSearchTime = 0f;
+                
             return true;
         }
 
@@ -204,7 +202,7 @@ namespace hypercube
             {                   
                 connectTimer += Time.deltaTime;
                 if (getIsStillSearchingForSerial())
-                    findSearialComUpdate(Time.deltaTime);
+                    updateSerialComSearch(Time.deltaTime);
                 else if (connectTimer > 1f)
                 {
                     searchForSerialComs(); //try searching again.
@@ -212,7 +210,6 @@ namespace hypercube
                 }
                 return;
             }
-
         }
 
         //handle PCB during period where we are just getting config data from it.
@@ -276,10 +273,8 @@ namespace hypercube
 
 
         //we haven't found all of our ports, keep trying.
-        private float serialComSearchTime = 0f;
-        void findSearialComUpdate(float deltaTime)
+        void updateSerialComSearch(float deltaTime)
         {
-            serialComSearchTime += deltaTime;
             for (int i = 0; i < portSearches.Length; i++)
             {
                 if (portSearches[i] == null)
@@ -302,6 +297,14 @@ namespace hypercube
                     touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); 
 
                     touchPanelStringManager.serial.SendSerialMessage("read0"); //send for the config asap. 
+                    forceStringRead = true; //safety, should already be true.
+
+                   
+#if HYPERCUBE_DEV
+                    castMesh cm = input._get().GetComponent<castMesh>();
+                    cm.calibratorBasic.pcbText.text = "<color=#ffff00>PCB</color>";  //let the dev know that we have found the pcb.
+#endif
+                    
                     portSearches[i] = null; //stop checking this port for relevance.                   
                     if (debug)
                         Debug.Log("Connected to and identified touch panel PCB hardware.");
@@ -309,16 +312,6 @@ namespace hypercube
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.
                     endPortSearch(); 
-                }
-                else if (t == serialPortType.SERIAL_WORKING)
-                {
-                    if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().serial.isConnected) //timeout
-                    {
-                        Destroy(portSearches[i].getSerialInput().serial);
-                        badSerialPorts.Add(portSearches[i].getSerialInput().serial.portName);
-                        portSearches[i] = null; //stop bothering with this guy.
-                    }
-                    //do nothing
                 }
             }
         }
