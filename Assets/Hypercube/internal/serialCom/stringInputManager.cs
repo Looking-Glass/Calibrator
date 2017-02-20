@@ -29,6 +29,9 @@ namespace hypercube
 
             string dataToStr = System.Text.Encoding.ASCII.GetString(dataChunk);
             messages.Enqueue(dataToStr);
+
+
+                Debug.Log("stringInputMgr: " + dataToStr);
         }
 
 
@@ -38,14 +41,23 @@ namespace hypercube
             while (data != null && data != "")
             {
                 if (debug)
-                    Debug.Log("touchScreenInputMgr: " + data);
+                    Debug.Log("stringInputMgr: " + data);
 
+                //byte[] b = getBytes(data);
                 byte[] b = System.Text.Encoding.Unicode.GetBytes(data);
                 addData(b);
+
                 data = serial.ReadSerialMessage();
             }
 
         }
+
+  //      static byte[] getBytes(string str)
+  //      {
+  //          byte[] bytes = new byte[str.Length * sizeof(char)];
+  //          System.Buffer.BlockCopy(str.ToCharArray(), 0, bytes, 0, bytes.Length);
+  //          return bytes;
+  //      }
 
 
     }

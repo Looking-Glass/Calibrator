@@ -213,11 +213,22 @@ namespace hypercube
         }
 
         //handle PCB during period where we are just getting config data from it.
+        float repingForDataTime = 1f;
         void updateGetSettingsFromPCB()
         {
             touchPanelStringManager.update(debug);
 
             string data = touchPanelStringManager.readMessage();
+
+            if (data == null || data == "")
+            {
+                repingForDataTime -= Time.deltaTime;
+                if (repingForDataTime <= 0f)
+                {
+                    touchPanelStringManager.serial.SendSerialMessage("read0"); //we seem to have missed the message... try again?
+                    repingForDataTime = 1f; //timer
+                }
+            }
 
             while (data != null && data != "")
             {
@@ -241,13 +252,12 @@ namespace hypercube
                         {
                             cm._setCalibration(verts);
 #if HYPERCUBE_DEV
-                            if (cm.calibratorV) cm.calibratorV.setLoadedVertices(verts, false); //if we are calibrating, the calibrator needs to know about previous calibrations                    
-                        }
-                        else
-                        {
-                            cm.calibratorBasic.pcbText.text = "<color=#00ff00>PCB</color>";  //let the dev know the pcb has viable data.
+                            if (cm.calibratorV) cm.calibratorV.setLoadedVertices(verts, false); //if we are calibrating, the calibrator needs to know about previous calibrations                                       
 #endif
                         }
+#if HYPERCUBE_DEV                    
+                        else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.text = "<color=#00ff00>PCB</color>";  //let the dev know the pcb has viable data, even though we didn't use it.
+#endif
                     }
                     else if (data != "data1::::done" && data.StartsWith("data1::") )
                         Debug.LogWarning("Received faulty 'perfect' vertex data from PCB");
@@ -289,25 +299,27 @@ namespace hypercube
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
                 {
+                    forceStringRead = true; //safety, should already be true.
+
                     touchPanelFirmwareVersion = portSearches[i].firmwareVersion;
                     touchPanelStringManager = portSearches[i].getSerialInput(); //we found the touch panel, get calibration and settings data off of it, and then pass it off to the touchScreenInput handler after done.
+
+                    touchPanelStringManager.serial.SendSerialMessage("read0");//send for the config asap.
 
                     //also give it to the touchpanel, this will let other methods call input.touchpanel without getting a null, 
                     //but it wont receive updates until we get a calibration.
                     touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); 
-
-                    touchPanelStringManager.serial.SendSerialMessage("read0"); //send for the config asap. 
-                    forceStringRead = true; //safety, should already be true.
-
-                   
+                                     
 #if HYPERCUBE_DEV
                     castMesh cm = input._get().GetComponent<castMesh>();
-                    cm.calibratorBasic.pcbText.text = "<color=#ffff00>PCB</color>";  //let the dev know that we have found the pcb.
+                    if (cm.calibratorBasic)
+                        cm.calibratorBasic.pcbText.text = "<color=#ffff00>PCB</color>";  //let the dev know that we have found the pcb.
 #endif
                     
                     portSearches[i] = null; //stop checking this port for relevance.                   
-                    if (debug)
-                        Debug.Log("Connected to and identified touch panel PCB hardware.");
+
+                    //if (debug)
+                    Debug.Log("Connected to and identified Volume touch panel PCB hardware.");
 
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.
@@ -375,7 +387,6 @@ namespace hypercube
 
 
 #if HYPERCUBE_DEV
-
         bool _recordingMode = false;
         float serialTimeoutIO = 5f;
         public enum pcbState
