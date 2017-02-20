@@ -577,45 +577,38 @@ namespace hypercube
                             }
                         }
                     }
-                    else if (Input.GetKey(KeyCode.X)) //move all verts along this x
+                    else if (Input.GetKey(KeyCode.C)) //move all verts along this x
                     {
-                        //TODO interpolate the y movements along their sister y's, while only using x translation from the mouse (instead of brutishly moving them over)
-                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
-                        {
-                            for (int s = 0; s < slicesX * slicesY; s++) //all slices
-                            {
-                                for (int optY = 0; optY < yOptions[displayLevelY].Length; optY++)
-                                {
-                                    moveVert(s, displayLevelX, selectionX, displayLevelY, optY, diff.x, diff.y);
-                                }
-                            }
-                        }
-                        else //current slice only.
+                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))//current slice only.
                         {
                             for (int optY = 0; optY < yOptions[displayLevelY].Length; optY++)
                             {
                                 moveVert(selectionS, displayLevelX, selectionX, displayLevelY, optY, diff.x, diff.y);
                             }
                         }
-                    }
-                    else if (Input.GetKey(KeyCode.C)) //move all verts along this y
-                    {
-                        //TODO interpolate the y movements along their sister y's, while only using x translation from the mouse (instead of brutishly moving them over)
-                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                        else //interpolate the y movements along their sister y's
                         {
-                            for (int s = 0; s < slicesX * slicesY; s++) //all slices
+                            for (int optY = 0; optY < yOptions[displayLevelY].Length; optY++)
                             {
-                                for (int optX = 0; optX < xOptions[displayLevelX].Length; optX++)
-                                {
-                                    moveVert(s, displayLevelX, optX, displayLevelY, selectionY, diff.x, diff.y);
-                                }
+                                moveDeepVert(selectionS, displayLevelX, selectionX, displayLevelY, optY, diff.x, diff.y);
                             }
                         }
-                        else //current slice only.
+                    }
+                    else if (Input.GetKey(KeyCode.X)) //move all verts along this y
+                    {
+                        
+                        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))//current slice only.
                         {
                             for (int optX = 0; optX < xOptions[displayLevelX].Length; optX++)
                             {
                                 moveVert(selectionS, displayLevelX, optX, displayLevelY, selectionY, diff.x, diff.y);
+                            }
+                        }
+                        else //interpolate the y movements along their sister y's,
+                        {
+                            for (int optX = 0; optX < xOptions[displayLevelX].Length; optX++)
+                            {
+                                moveDeepVert(selectionS, displayLevelX, optX, displayLevelY, selectionY, diff.x, diff.y);
                             }
                         }
                     }
@@ -695,7 +688,7 @@ namespace hypercube
             //modifiers
             if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
             {
-                //Toggle display
+                //Toggle different bg display
                 if (Input.GetKeyDown(KeyCode.Alpha1))
                 { renderDots++;   if (renderDots == renderCondition.INVALID) renderDots = 0; updateTextures(); }
                 if (Input.GetKeyDown(KeyCode.Alpha2))
@@ -705,6 +698,7 @@ namespace hypercube
                 if (Input.GetKeyDown(KeyCode.Alpha4))
                 { currentBgMaterial++; if (currentBgMaterial >= bgMaterials.Length) currentBgMaterial = 0; background.GetComponent<MeshRenderer>().material = bgMaterials[currentBgMaterial]; updateTextures(); }
 
+                //flip only the current slice verts
                 if (Input.GetKeyDown(KeyCode.Alpha8))
                 { flipVertsX(selectionS); canvas._setCalibration(vertices);  updateTextures(); }
                 if (Input.GetKeyDown(KeyCode.Alpha9))
@@ -735,13 +729,35 @@ namespace hypercube
                 lastMousePos = Input.mousePosition;
         }
 
+        //lerps the appropriate unselected vertices and also it's equivalent among sister slices
+        void moveDeepVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
+        {
+            
+            int sliceCount = slicesX * slicesY;
+            for (int s = 0; s < sliceCount; s++)
+            {
+                if (s == slice)
+                    moveVert(slice, dispX, selX, dispY, selY, xAmount, yAmount); //move the main slice 
+                else if (s < slice)
+                {
+                    float lerp = Mathf.Lerp(0f, 1f, (float)s/(float)slice);
+                    moveVert(s, dispX, selX, dispY, selY, xAmount * lerp, yAmount * lerp);
+                }
+                else //s > slice
+                {
+                    float lerp = Mathf.Lerp(0f, 1f, 1f -((float)(s-slice)/(float)(sliceCount - slice)));
+                    moveVert(s, dispX, selX, dispY, selY, xAmount * lerp, yAmount * lerp);
+                }
+            }
+        }
+
+
         //lerps the appropriate unselected vertices
         void moveVert(int slice, float xAmount, float yAmount)
         {
             moveVert(slice, displayLevelX, selectionX, displayLevelY, selectionY, xAmount, yAmount);
         }
-
-
+            
         void moveVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
 		{
             if (xAmount == 0 && yAmount == 0)
