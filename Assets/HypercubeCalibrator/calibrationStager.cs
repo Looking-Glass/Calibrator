@@ -63,6 +63,19 @@ namespace hypercube
 
             if (Input.GetKeyDown(KeyCode.Escape)) 
             {
+
+                if (helpImage.gameObject.activeSelf) //if the help menu is up shut it, instead of shutting down.
+                {
+                    helpImage.gameObject.SetActive(false);
+                    return;
+                }
+
+                if (messageWindow.isVisible) //close message window, don't shut down in this case.
+                {
+                    messageWindow.setVisible(false);
+                    return;
+                }
+
                 quit();
                 return;
             }
