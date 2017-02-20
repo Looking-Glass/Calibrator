@@ -70,7 +70,7 @@ namespace hypercube
                     return;
                 }
 
-                if (messageWindow.isVisible) //close message window, don't shut down in this case.
+                if (messageWindow.isVisible()) //close message window, don't shut down in this case.
                 {
                     messageWindow.setVisible(false);
                     return;

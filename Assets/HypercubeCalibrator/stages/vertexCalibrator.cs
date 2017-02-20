@@ -44,6 +44,8 @@ namespace hypercube
 
         Vector2[,,] vertices = null;
         Vector2[,,] perfectVertices = null; //the untouched values. Instead of recalculating where on the mesh we are at each time if we need to reset some value(s), keeping them here is an easy and flexible way to do so.
+        vertexCalibratorUndoManager undoMgr = null;
+
 
         int displayLevelX = 0;  //the current detail display level. Valid values are -articulations.size to 0, since it functions as an index to xOptions and yOptions
 		int displayLevelY = 0;
@@ -102,6 +104,10 @@ namespace hypercube
 
         Vector3 lastMousePos; //used to calculate mouse controls
 
+        void Awake()
+        {
+            undoMgr = new vertexCalibratorUndoManager(this, 20);
+        }
 
         public override void OnEnable()
         {
