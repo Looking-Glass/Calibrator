@@ -7,18 +7,11 @@ namespace hypercube
     public class vertexCalibratorUndoManager 
     {
 
-        public const uint undoCount = 15;
-        private vertexCalibrator vCalibrator = null;
+        public const uint undoCount = 25;
 
         List<Vector2[,,]> undoQueue = new List<Vector2[,,]>();
 
         int currentPosition;
-
-        vertexCalibratorUndoManager(vertexCalibrator c, uint _undoCount)
-        {
-            undoCount = _undoCount;
-            vCalibrator = c;
-        }
 
         public void recordUndo(Vector2[,,] u)
         {

@@ -69,9 +69,10 @@ namespace hypercube
             return false;
         }
 
-        void getNearestOptionX(int v, out uint less, out uint greater)
+        void getNearestOptionX(uint v, out uint less, out uint greater)
         {
-            foreach (int o in xOptions[displayLevelX])
+            less = greater = 0;
+            foreach (uint o in xOptions[displayLevelX])
             {
                 if (v == o)
                 {
@@ -88,9 +89,10 @@ namespace hypercube
                 }
             }
         }
-        void getNearestOptionY(int v, out uint less, out uint greater)
+        void getNearestOptionY(uint v, out uint less, out uint greater)
         {
-            foreach (int o in yOptions[displayLevelY])
+            less = greater = 0;
+            foreach (uint o in yOptions[displayLevelY])
             {
                 if (v == o)
                 {
@@ -145,7 +147,7 @@ namespace hypercube
 
         void Awake()
         {
-            undoMgr = new vertexCalibratorUndoManager(this, 20);
+            undoMgr = new vertexCalibratorUndoManager();
         }
 
         public override void OnEnable()
@@ -583,9 +585,9 @@ namespace hypercube
                             // "reset" this vert by moving it to its proper position based on the nearest active x values
                             uint less;
                             uint greater;
-                            getNearestOptionX(x, out less, out greater);
+                            getNearestOptionX((uint)x, out less, out greater);
                             vertices[selectionS, x, y].x = Mathf.Lerp(vertices[selectionS, less, y].x, vertices[selectionS, greater, y].x, Mathf.InverseLerp(less, greater, x));
-                            getNearestOptionY(y, out less, out greater);
+                            getNearestOptionY((uint)y, out less, out greater);
                             vertices[selectionS, x, y].y = Mathf.Lerp(vertices[selectionS, x, less].y, vertices[selectionS, x, greater].y, Mathf.InverseLerp(less, greater, y));
                         }
                     }
@@ -758,7 +760,7 @@ namespace hypercube
 					canvas._setCalibration (vertices);
 				}
 			}
-            else if (vertChangeOccurred && Input.GetButtonUp(KeyCode.Mouse0)) //record undo on mouseup
+            else if (vertChangeOccurred && Input.GetKeyUp(KeyCode.Mouse0)) //record undo on mouseup
             {
                 undoMgr.recordUndo(vertices);
                 vertChangeOccurred = false;
@@ -810,6 +812,10 @@ namespace hypercube
         }
 
         //lerps the appropriate unselected vertices and also it's equivalent among sister slices
+        void moveDeepVert(int slice, float xAmount, float yAmount)
+        {
+            moveDeepVert(slice, displayLevelX, selectionX, displayLevelY, selectionY, xAmount, yAmount);
+        }
         void moveDeepVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
         {
             
