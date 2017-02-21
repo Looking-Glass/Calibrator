@@ -69,6 +69,45 @@ namespace hypercube
             return false;
         }
 
+        void getNearestOptionX(int v, out uint less, out uint greater)
+        {
+            foreach (int o in xOptions[displayLevelX])
+            {
+                if (v == o)
+                {
+                    less = v;
+                    greater = v;
+                    return;
+                }
+                if (o < v)
+                    less = v; 
+                else
+                {
+                    greater = o;
+                    return;
+                }
+            }
+        }
+        void getNearestOptionY(int v, out uint less, out uint greater)
+        {
+            foreach (int o in yOptions[displayLevelY])
+            {
+                if (v == o)
+                {
+                    less = v;
+                    greater = v;
+                    return;
+                }
+                if (o < v)
+                    less = v; 
+                else
+                {
+                    greater = o;
+                    return;
+                }
+            }
+        }
+
 
         public GameObject dotParent;
         public TextMesh sliceNumText;
@@ -411,6 +450,7 @@ namespace hypercube
             vertices[slice, xVert, yVert].y = perfectVertices[slice, xVert, yVert].y;
         }
 
+        bool vertChangeOccurred = false;
         void Update()
         {
 
@@ -535,18 +575,22 @@ namespace hypercube
             if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
             {
                 for (int y = 0; y < articulationY; y++)
-                {
-                    if (!yOptionContains(y))
+                {                  
+                    for (int x = 0; x < articulationX; x++)
                     {
-                        for (int x = 0; x < articulationX; x++)
+                        if (!xOptionContains(x) || !yOptionContains(y))
                         {
-                            if (!xOptionContains(x))
-                            {
-                                //"reset" this vert by moving it to its proper position based on the nearest active x values
-                            }
+                            // "reset" this vert by moving it to its proper position based on the nearest active x values
+                            uint less;
+                            uint greater;
+                            getNearestOptionX(x, out less, out greater);
+                            vertices[selectionS, x, y].x = Mathf.Lerp(vertices[selectionS, less, y].x, vertices[selectionS, greater, y].x, Mathf.InverseLerp(less, greater, x));
+                            getNearestOptionY(y, out less, out greater);
+                            vertices[selectionS, x, y].y = Mathf.Lerp(vertices[selectionS, x, less].y, vertices[selectionS, x, greater].y, Mathf.InverseLerp(less, greater, y));
                         }
                     }
                 }
+                undoMgr.recordUndo(vertices);
                 canvas._setCalibration(vertices);
             }
             //reset all
@@ -556,6 +600,23 @@ namespace hypercube
             {
                 vertices = perfectVertices;
                 canvas._setCalibration(vertices);
+                undoMgr.recordUndo(vertices);
+            }
+
+            //undo
+            if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) ||
+                Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand)
+                ) && Input.GetKeyDown(KeyCode.Z))
+            {
+                    canvas._setCalibration(undoMgr.undo());
+                    return;
+            }
+            //redo
+            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)
+            ) && Input.GetKeyDown(KeyCode.Z))
+            {
+                canvas._setCalibration(undoMgr.redo());
+                return;
             }
 
 
@@ -618,7 +679,8 @@ namespace hypercube
                             }
                         }
                     }
-                    else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                    else if (Input.GetKey(KeyCode.A) && 
+                            (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
                              (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))) //move every vert /offset all
                     {
                         if (getXFlip(selectionS))
@@ -637,15 +699,9 @@ namespace hypercube
                             }
                         }
                     }
-                    else if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) //move this vert on all slices
-                    {
-                        int slices = slicesX * slicesY;
-                        for (int s = 0; s < slices; s++)
-                        {
-                            moveVert(s, diff.x, diff.y);
-                        }
-                    }
-                    else if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) //move the whole slice
+
+                    else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && //move the whole slice
+                        (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
                     {
                         if (getXFlip(selectionS))
                             diff.x = -diff.x;
@@ -660,7 +716,19 @@ namespace hypercube
                             }
                         }
                     }
-                    else if (cubeMode)
+                    else if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))  //move this vert on all slices
+                    {
+                        int slices = slicesX * slicesY;
+                        for (int s = 0; s < slices; s++)
+                        {
+                            moveVert(s, diff.x, diff.y);
+                        }
+                    }
+                    else if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) //move this vert only
+                    {                       
+                        moveVert(selectionS, diff.x, diff.y);
+                    }
+                /*    else if (cubeMode)
                     {
                         //cube mode is really a variant of the lowest mode. Here we lerp movement along the z edges
                         int slices = slicesX * slicesY;
@@ -682,13 +750,19 @@ namespace hypercube
                             }
                         }
                     }
+                    */
                     else
-                        moveVert(selectionS, diff.x, diff.y);// move a single vert
+                        moveDeepVert(selectionS, diff.x, diff.y); //move this vert softly, on all slices (the default)
 
-
+                    vertChangeOccurred = true;
 					canvas._setCalibration (vertices);
 				}
 			}
+            else if (vertChangeOccurred && Input.GetButtonUp(KeyCode.Mouse0)) //record undo on mouseup
+            {
+                undoMgr.recordUndo(vertices);
+                vertChangeOccurred = false;
+            }
 
 
             //modifiers
@@ -706,9 +780,9 @@ namespace hypercube
 
                 //flip only the current slice verts
                 if (Input.GetKeyDown(KeyCode.Alpha8))
-                { flipVertsX(selectionS); canvas._setCalibration(vertices);  updateTextures(); }
+                { flipVertsX(selectionS); canvas._setCalibration(vertices);  updateTextures(); undoMgr.recordUndo(vertices);}
                 if (Input.GetKeyDown(KeyCode.Alpha9))
-                { flipVertsY(selectionS); canvas._setCalibration(vertices);  updateTextures(); }
+                { flipVertsY(selectionS); canvas._setCalibration(vertices);  updateTextures(); undoMgr.recordUndo(vertices);}
             }
             else // no modifier
             {
@@ -724,11 +798,11 @@ namespace hypercube
                     sensitivity = .15f;
 
                 if (Input.GetKeyDown(KeyCode.Alpha8))
-                { flipVertsX(); }
+                { flipVertsX(); undoMgr.recordUndo(vertices);}
                 if (Input.GetKeyDown(KeyCode.Alpha9))
-                { flipVertsY(); }
+                { flipVertsY(); undoMgr.recordUndo(vertices);}
                 if (Input.GetKeyDown(KeyCode.Alpha0))
-                { flipVertsZ(); }
+                { flipVertsZ(); undoMgr.recordUndo(vertices);}
             }
 
 
