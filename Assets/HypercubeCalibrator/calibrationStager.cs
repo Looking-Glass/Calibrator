@@ -80,11 +80,22 @@ namespace hypercube
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
+            if (Input.GetKeyDown(KeyCode.Return))//close message window
             {
-                //TODO SAVE!!!
-                return;
+                if (messageWindow.isVisible()) 
+                {
+                    messageWindow.setVisible(false);
+                    return;
+                }
             }
+
+
+            //saving is handled in settingsFileIO.cs
+           // if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
+           // {
+                // SAVE!!!
+           //     return;
+           // }
         }
 
         public void nextStage()

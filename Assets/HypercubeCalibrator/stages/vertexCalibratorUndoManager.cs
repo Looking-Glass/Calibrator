@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
+
 namespace hypercube
 {
+
     public class vertexCalibratorUndoManager 
     {
 
@@ -19,7 +22,8 @@ namespace hypercube
             if (undoQueue.Count - (currentPosition + 1) > 0)
                 undoQueue.RemoveRange(currentPosition + 1, undoQueue.Count - (currentPosition + 1) );
 
-            undoQueue.Add(u);
+
+            undoQueue.Add(deepCopyVertices(u));
 
             //get rid of too many undo's
             while (undoQueue.Count > undoCount)
@@ -52,5 +56,25 @@ namespace hypercube
             return undoQueue[currentPosition];
         }
 
+        public static Vector2[,,] deepCopyVertices(Vector2[,,] c)
+        {
+            int sz = c.GetLength(0);
+            int sx = c.GetLength(1);
+            int sy = c.GetLength(2);
+
+            Vector2[,,] output = new Vector2[sz, sx, sy];
+            for (int z = 0; z < sz; z++)
+            {
+                for (int y = 0; y < sy; y++)
+                {
+                    for (int x = 0; x < sx; x++)
+                    {
+                        output[z, x, y] = c[z, x, y];
+                    }
+                }
+            }
+            return output;
+        }
+            
     }
 }

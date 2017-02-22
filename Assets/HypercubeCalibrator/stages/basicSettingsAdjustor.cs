@@ -8,6 +8,7 @@ namespace hypercube
 
         public UnityEngine.UI.InputField modelName;
         public UnityEngine.UI.InputField versionNumber;
+        public UnityEngine.UI.InputField serialNumber;
 
         public UnityEngine.UI.InputField resX;
         public UnityEngine.UI.InputField resY;
@@ -29,6 +30,13 @@ namespace hypercube
         public UnityEngine.UI.Text usbText;
         public UnityEngine.UI.Text pcbText;
 
+
+        void Awake()
+        {
+            pcbText.text = "<color=#ff0000>PCB</color>";
+            usbText.text = "<color=#ff0000>USB</color>";
+        }
+
         void OnEnable()
         {
             reloadDataFile();
@@ -43,6 +51,7 @@ namespace hypercube
 
             modelName.text = d.getValue("volumeModelName", "UNKNOWN!");
             versionNumber.text = d.getValue("volumeHardwareVersion", "-9999");
+            serialNumber.text = d.getValue("serialNum", "");
 
             resX.text = d.getValueAsInt("volumeResX", 1920).ToString();
             resY.text = d.getValueAsInt("volumeResY", 1080).ToString();
@@ -131,6 +140,7 @@ namespace hypercube
 
             d.setValue("volumeModelName", modelName.text);
             d.setValue("volumeHardwareVersion", dataFileDict.stringToFloat(versionNumber.text, -9999f));
+            d.setValue("serialNum", serialNumber.text);
 
             d.setValue("volumeResX", dataFileDict.stringToInt(resX.text, 1920));
             d.setValue("volumeResY", dataFileDict.stringToInt(resY.text, 1080));

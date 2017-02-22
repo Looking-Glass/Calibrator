@@ -18,7 +18,7 @@ namespace hypercube
 
             if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
             {
-                if (Input.GetKeyDown(KeyCode.S)) //move this vert on all slices
+                if (Input.GetKeyDown(KeyCode.S)) 
                 {
                     StartCoroutine(vc.saveSettings());
     
