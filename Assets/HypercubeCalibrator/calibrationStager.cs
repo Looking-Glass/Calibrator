@@ -24,10 +24,13 @@ namespace hypercube
         public bool allowNextStage = true; //can be used to block progress if settings are bad
 
 
-        void Start()
+        void Awake()
         {
             canvas.calibratorBasic.pcbText.color = Color.red;
             canvas.calibratorBasic.usbText.color = Color.red;
+        }
+        void Start()
+        {
             stage = 0;
             resetStage();
         }

@@ -46,7 +46,7 @@ namespace hypercube
 
             modelName.text = d.getValue("volumeModelName", "UNKNOWN!");
             versionNumber.text = d.getValue("volumeHardwareVersion", "-9999");
-            serialNumber.text = d.getValue("serialNum", "");
+            serialNumber.text = d.getValue("serialNum", "N/A");
 
             resX.text = d.getValueAsInt("volumeResX", 1920).ToString();
             resY.text = d.getValueAsInt("volumeResY", 1080).ToString();

@@ -323,7 +323,7 @@ namespace hypercube
                     portSearches[i] = null; //stop checking this port for relevance.                   
 
                     //if (debug)
-                    Debug.Log("Connected to and identified Volume touch panel PCB hardware.");
+                    Debug.Log("Connected to and identified Volume Touch Panel hardware.");
 
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.
@@ -410,7 +410,7 @@ namespace hypercube
                 _recordingMode = false;
 
                 //prepare the pcb to accept our data
-                touchPanelStringManager.serial.SendSerialMessage("write0"); //perfect slices
+                touchPanelStringManager.serial.SendSerialMessage("write0"); //settings data
 
                 while (!_recordingMode)
                 {
