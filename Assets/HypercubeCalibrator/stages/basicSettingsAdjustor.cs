@@ -30,12 +30,7 @@ namespace hypercube
         public UnityEngine.UI.Text usbText;
         public UnityEngine.UI.Text pcbText;
 
-
-        void Awake()
-        {
-            pcbText.text = "<color=#ff0000>PCB</color>";
-            usbText.text = "<color=#ff0000>USB</color>";
-        }
+       
 
         void OnEnable()
         {

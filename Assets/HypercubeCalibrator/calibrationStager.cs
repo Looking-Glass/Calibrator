@@ -26,7 +26,8 @@ namespace hypercube
 
         void Start()
         {
-
+            canvas.calibratorBasic.pcbText.color = Color.red;
+            canvas.calibratorBasic.usbText.color = Color.red;
             stage = 0;
             resetStage();
         }

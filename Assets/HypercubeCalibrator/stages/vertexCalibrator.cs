@@ -209,9 +209,9 @@ namespace hypercube
             if (perfectVertices == null) //we haven't opened the vertexCalibration menu yet, just supply this data.
             {
                 if (pcbUsb)
-                    basicSettings.usbText.text = "<color=#00ff00>USB</color>";
+                    basicSettings.usbText.color = Color.green;
                 else
-                    basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
+                    basicSettings.pcbText.color = Color.green;
 
                 vertices = newVerts;
                 canvas._setCalibration(vertices);
@@ -221,9 +221,9 @@ namespace hypercube
             articulationY == newVerts.GetLength(2))
             {                         
                 if (pcbUsb)
-                    basicSettings.usbText.text = "<color=#00ff00>USB</color>";
+                    basicSettings.usbText.color = Color.green;
                 else
-                    basicSettings.pcbText.text = "<color=#00ff00>PCB</color>";
+                    basicSettings.pcbText.color = Color.green;
 
                 vertices = newVerts; //update the current verts with the new ones.
                 canvas._setCalibration(vertices);

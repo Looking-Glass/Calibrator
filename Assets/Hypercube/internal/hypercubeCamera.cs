@@ -124,15 +124,22 @@ using System.Collections.Generic;
             if (!localCastMesh)
                 localCastMesh = GameObject.FindObjectOfType<hypercube.castMesh>();
 
-            //maintain scale aspect ratio if desired.
-            if (scaleConstraint == scaleConstraintType.NONE) 
-            { }
-            else if (scaleConstraint == scaleConstraintType.X_RELATIVE)
-                transform.localScale = new Vector3(transform.localScale.x, transform.localScale.x * localCastMesh.aspectX.y, transform.localScale.x * localCastMesh.aspectX.z);
-            else if (scaleConstraint == scaleConstraintType.Y_RELATIVE)
-                transform.localScale = new Vector3(transform.localScale.y * localCastMesh.aspectY.x, transform.localScale.y, transform.localScale.y * localCastMesh.aspectY.z);
-            else if (scaleConstraint == scaleConstraintType.Z_RELATIVE)
-                transform.localScale = new Vector3(transform.localScale.z * localCastMesh.aspectZ.x, transform.localScale.z * localCastMesh.aspectZ.y, transform.localScale.z);
+            try
+            {
+                //maintain scale aspect ratio if desired.
+                if (scaleConstraint == scaleConstraintType.NONE) 
+                { }
+                else if (scaleConstraint == scaleConstraintType.X_RELATIVE)
+                    transform.localScale = new Vector3(transform.localScale.x, transform.localScale.x * localCastMesh.aspectX.y, transform.localScale.x * localCastMesh.aspectX.z);
+                else if (scaleConstraint == scaleConstraintType.Y_RELATIVE)
+                    transform.localScale = new Vector3(transform.localScale.y * localCastMesh.aspectY.x, transform.localScale.y, transform.localScale.y * localCastMesh.aspectY.z);
+                else if (scaleConstraint == scaleConstraintType.Z_RELATIVE)
+                    transform.localScale = new Vector3(transform.localScale.z * localCastMesh.aspectZ.x, transform.localScale.z * localCastMesh.aspectZ.y, transform.localScale.z);
+            }
+            catch
+            {
+                Debug.LogWarning("Hypercube settings configuration is faulty. The scale aspect ratio of the Volumetric display has not been set or has 0 values! Run calibrator again!");
+            }
 
             if (transform.hasChanged)
             {

@@ -31,7 +31,7 @@ namespace hypercube
             messages.Enqueue(dataToStr);
 
 
-                Debug.Log("stringInputMgr: " + dataToStr);
+          //      Debug.Log("stringInputMgr: " + dataToStr);
         }
 
 

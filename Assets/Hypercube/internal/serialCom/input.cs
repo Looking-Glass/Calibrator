@@ -190,7 +190,7 @@ namespace hypercube
         void Update()
         {
 
-            if (forceStringRead && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
+            if (forceStringRead && touchPanel == null && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
             {
                 updateGetSettingsFromPCB();
             }
@@ -213,14 +213,14 @@ namespace hypercube
         }
 
         //handle PCB during period where we are just getting config data from it.
-        float repingForDataTime = 1f;
+        //float repingForDataTime = 1f;
         void updateGetSettingsFromPCB()
         {
             touchPanelStringManager.update(debug);
 
             string data = touchPanelStringManager.readMessage();
 
-            if (data == null || data == "")
+ /*           if (data == null || data == "")
             {
                 repingForDataTime -= Time.deltaTime;
                 if (repingForDataTime <= 0f)
@@ -228,7 +228,7 @@ namespace hypercube
                     touchPanelStringManager.serial.SendSerialMessage("read0"); //we seem to have missed the message... try again?
                     repingForDataTime = 1f; //timer
                 }
-            }
+            }*/
 
             while (data != null && data != "")
             {
@@ -240,6 +240,7 @@ namespace hypercube
                         touchPanelStringManager.serial.SendSerialMessage("read1"); //give us the perfect slices.  If it uses an FPGA
                     else
                         touchPanelStringManager.serial.SendSerialMessage("read2"); //ask for the calibrated slices.
+                    return; //return is important here, to avoid calling readMessage() again, in case calling methods want to change what we do once we have what we want.
                 }
                 else if (data.StartsWith("data") && data.EndsWith("::done"))
                 {
@@ -256,7 +257,7 @@ namespace hypercube
 #endif
                         }
 #if HYPERCUBE_DEV                    
-                        else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.text = "<color=#00ff00>PCB</color>";  //let the dev know the pcb has viable data, even though we didn't use it.
+                        else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.color = Color.green;  //let the dev know the pcb has viable data, even though we didn't use it.
 #endif
                     }
                     else if (data != "data1::::done" && data.StartsWith("data1::") )
@@ -265,15 +266,18 @@ namespace hypercube
                         Debug.LogWarning("Received faulty 'calibrated' vertex data from PCB");   
                         
                     forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
+                    return;
                 }
 #if HYPERCUBE_DEV
                 else if (data.StartsWith("mode::recording::"))
                 {
                     _recordingMode = true;
+                    return;
                 }
                 else if (data.StartsWith("recording::done"))
                 {
                     _recordingMode = false;
+                    return;
                 }
 #endif
                 data = touchPanelStringManager.readMessage();
@@ -313,7 +317,7 @@ namespace hypercube
 #if HYPERCUBE_DEV
                     castMesh cm = input._get().GetComponent<castMesh>();
                     if (cm.calibratorBasic)
-                        cm.calibratorBasic.pcbText.text = "<color=#ffff00>PCB</color>";  //let the dev know that we have found the pcb.
+                        cm.calibratorBasic.pcbText.color = Color.yellow;  //let the dev know that we have found the pcb.
 #endif
                     
                     portSearches[i] = null; //stop checking this port for relevance.                   

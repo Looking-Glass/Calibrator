@@ -41,7 +41,7 @@ namespace hypercube
                 Debug.LogWarning("PCB basic settings seem to have been asked for more than once!");
             pcbSettings = _pcbSettings;
  #if HYPERCUBE_DEV
-           if (calibratorBasic) calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
+            if (calibratorBasic) calibratorBasic.pcbText.color = Color.yellow;
 #endif
         }
 
@@ -173,7 +173,7 @@ namespace hypercube
             {
                 hasUSBBasic = true;
 #if HYPERCUBE_DEV
-                if (calibratorBasic) calibratorBasic.usbText.text = "<color=yellow>USB</color>";
+                if (calibratorBasic) calibratorBasic.usbText.color = Color.yellow;
 #endif
 
                 string calibrationFile = "";
@@ -539,10 +539,6 @@ namespace hypercube
                 {
                     Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
 
-                    //TODO handle flipping! preferably in the materials
-                    //add lerped uv
-                   // float xLerp = Mathf.Lerp(topLeftUV.x, bottomRightUV.x, targetUV.x);
-                   // float yLerp = Mathf.Lerp(topLeftUV.y, bottomRightUV.y, targetUV.y);
                     uvs.Add(targetUV);
 
                     colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
@@ -588,17 +584,24 @@ namespace hypercube
                     {
                         clr = rTex.GetPixel(x, y);
                         if (!floatToColor(clr.r * w, out xColors[n]))
+                        {
+                            c.targetTexture = null;
                             return false;
+                        }
                         if (!floatToColor(
                            ((clr.g / slices) * h) +  //the position within the current slice
                            (((clr.b * 1000) / (float)slices) * (float)h), out yColors[n]))  //plus the slice's height position within the entire image. The 10 is because the slice number is encoded as .1 per slice
+                        {
+                            c.targetTexture = null;
                             return false;
+                        }
                         n++;
                     }
                 }
             }
             catch 
             {
+                c.targetTexture = null;
                 Debug.LogError("Something was wrong with the sully texture.  Check that the proper shader was set in the castMesh sullyColorShader.");
                 return false;
             }

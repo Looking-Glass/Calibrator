@@ -85,7 +85,10 @@ namespace hypercube
                     firmwareVersion = dataFileDict.stringToFloat(toks[2], firmwareVersion);
 
                     if (toks[1] == "touchPanelsPCB")
+                    {
                         type = serialPortType.SERIAL_TOUCHPANEL;
+                        return type; //don't readMessage again. let the calling method do it, now that we are done here.
+                    }
 
                     //TODO add any other kinds of serial ports that need ID here.
                 }
