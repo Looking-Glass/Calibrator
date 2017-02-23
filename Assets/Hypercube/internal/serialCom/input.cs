@@ -213,14 +213,14 @@ namespace hypercube
         }
 
         //handle PCB during period where we are just getting config data from it.
-        //float repingForDataTime = 1f;
+        float repingForDataTime = 1f;
         void updateGetSettingsFromPCB()
         {
             touchPanelStringManager.update(debug);
 
             string data = touchPanelStringManager.readMessage();
 
- /*           if (data == null || data == "")
+            if (data == null || data == "")
             {
                 repingForDataTime -= Time.deltaTime;
                 if (repingForDataTime <= 0f)
@@ -228,7 +228,7 @@ namespace hypercube
                     touchPanelStringManager.serial.SendSerialMessage("read0"); //we seem to have missed the message... try again?
                     repingForDataTime = 1f; //timer
                 }
-            }*/
+            }
 
             while (data != null && data != "")
             {

@@ -30,8 +30,8 @@ namespace hypercube
             string dataToStr = System.Text.Encoding.ASCII.GetString(dataChunk);
             messages.Enqueue(dataToStr);
 
-
-          //      Debug.Log("stringInputMgr: " + dataToStr);
+            if (input._debug)
+                Debug.Log("stringInputMgr: " + dataToStr);
         }
 
 

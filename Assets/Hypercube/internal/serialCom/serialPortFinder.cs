@@ -70,7 +70,7 @@ namespace hypercube
                 sentForcedInit = true;
             }
 
-            testSubject.update(false);
+            testSubject.update(debug);
 
             string data = testSubject.readMessage();
             while (data != null)
