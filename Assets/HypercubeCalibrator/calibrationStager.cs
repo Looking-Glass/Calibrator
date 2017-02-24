@@ -24,9 +24,13 @@ namespace hypercube
         public bool allowNextStage = true; //can be used to block progress if settings are bad
 
 
+        void Awake()
+        {
+            canvas.calibratorBasic.pcbText.color = Color.red;
+            canvas.calibratorBasic.usbText.color = Color.red;
+        }
         void Start()
         {
-
             stage = 0;
             resetStage();
         }
@@ -63,15 +67,39 @@ namespace hypercube
 
             if (Input.GetKeyDown(KeyCode.Escape)) 
             {
+
+                if (helpImage.gameObject.activeSelf) //if the help menu is up shut it, instead of shutting down.
+                {
+                    helpImage.gameObject.SetActive(false);
+                    return;
+                }
+
+                if (messageWindow.isVisible()) //close message window, don't shut down in this case.
+                {
+                    messageWindow.setVisible(false);
+                    return;
+                }
+
                 quit();
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
+            if (Input.GetKeyDown(KeyCode.Return))//close message window
             {
-                //TODO SAVE!!!
-                return;
+                if (messageWindow.isVisible()) 
+                {
+                    messageWindow.setVisible(false);
+                    return;
+                }
             }
+
+
+            //saving is handled in settingsFileIO.cs
+           // if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftShift))
+           // {
+                // SAVE!!!
+           //     return;
+           // }
         }
 
         public void nextStage()

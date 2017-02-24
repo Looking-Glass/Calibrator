@@ -340,6 +340,7 @@ namespace hypercube
         }
         static float map(float s, float a1, float a2, float b1, float b2)
         {
+            //return Mathf.Lerp(b1, b2, Mathf.InverseLerp(a1, a2, s)); //also works fine.
             return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
         }
 

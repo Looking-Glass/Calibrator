@@ -130,7 +130,6 @@ namespace hypercube
             if (getIsStillSearchingForSerial()) //we are still searching.
                 return false;
 
-            serialComSearchTime = 0f;
             string[] allNames = getPortNames();
 
             if (allNames.Length == 0)
@@ -167,8 +166,7 @@ namespace hypercube
                 portSearches[i].debug = debug;
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
             }
-
-            serialComSearchTime = 0f;
+                
             return true;
         }
 
@@ -192,7 +190,7 @@ namespace hypercube
         void Update()
         {
 
-            if (forceStringRead && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
+            if (forceStringRead && touchPanel == null && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
             {
                 updateGetSettingsFromPCB();
             }
@@ -204,7 +202,7 @@ namespace hypercube
             {                   
                 connectTimer += Time.deltaTime;
                 if (getIsStillSearchingForSerial())
-                    findSearialComUpdate(Time.deltaTime);
+                    updateSerialComSearch(Time.deltaTime);
                 else if (connectTimer > 1f)
                 {
                     searchForSerialComs(); //try searching again.
@@ -212,15 +210,25 @@ namespace hypercube
                 }
                 return;
             }
-
         }
 
         //handle PCB during period where we are just getting config data from it.
+        float repingForDataTime = 1f;
         void updateGetSettingsFromPCB()
         {
             touchPanelStringManager.update(debug);
 
             string data = touchPanelStringManager.readMessage();
+
+            if (data == null || data == "")
+            {
+                repingForDataTime -= Time.deltaTime;
+                if (repingForDataTime <= 0f)
+                {
+                    touchPanelStringManager.serial.SendSerialMessage("read0"); //we seem to have missed the message... try again?
+                    repingForDataTime = 1f; //timer
+                }
+            }
 
             while (data != null && data != "")
             {
@@ -232,6 +240,7 @@ namespace hypercube
                         touchPanelStringManager.serial.SendSerialMessage("read1"); //give us the perfect slices.  If it uses an FPGA
                     else
                         touchPanelStringManager.serial.SendSerialMessage("read2"); //ask for the calibrated slices.
+                    return; //return is important here, to avoid calling readMessage() again, in case calling methods want to change what we do once we have what we want.
                 }
                 else if (data.StartsWith("data") && data.EndsWith("::done"))
                 {
@@ -244,13 +253,12 @@ namespace hypercube
                         {
                             cm._setCalibration(verts);
 #if HYPERCUBE_DEV
-                            if (cm.calibratorV) cm.calibratorV.setLoadedVertices(verts, false); //if we are calibrating, the calibrator needs to know about previous calibrations                    
-                        }
-                        else
-                        {
-                            cm.calibratorBasic.pcbText.text = "<color=#00ff00>PCB</color>";  //let the dev know the pcb has viable data.
+                            if (cm.calibratorV) cm.calibratorV.setLoadedVertices(verts, false); //if we are calibrating, the calibrator needs to know about previous calibrations                                       
 #endif
                         }
+#if HYPERCUBE_DEV                    
+                        else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.color = Color.green;  //let the dev know the pcb has viable data, even though we didn't use it.
+#endif
                     }
                     else if (data != "data1::::done" && data.StartsWith("data1::") )
                         Debug.LogWarning("Received faulty 'perfect' vertex data from PCB");
@@ -258,21 +266,18 @@ namespace hypercube
                         Debug.LogWarning("Received faulty 'calibrated' vertex data from PCB");   
                         
                     forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
+                    return;
                 }
 #if HYPERCUBE_DEV
                 else if (data.StartsWith("mode::recording::"))
                 {
                     _recordingMode = true;
+                    return;
                 }
-                else if (data.EndsWith("::recording::done"))
+                else if (data.StartsWith("recording::done"))
                 {
-                    string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     _recordingMode = false;
-                    int dataWritten = dataFileDict.stringToInt( toks[2], -1);
-                    if (dataWritten == touchPanelStringManager._lastSentLargeMessageSize)
-                        pcbIoState = pcbState.SUCCESS;
-                    else
-                        pcbIoState = pcbState.FAIL;
+                    return;
                 }
 #endif
                 data = touchPanelStringManager.readMessage();
@@ -282,10 +287,8 @@ namespace hypercube
 
 
         //we haven't found all of our ports, keep trying.
-        private float serialComSearchTime = 0f;
-        void findSearialComUpdate(float deltaTime)
+        void updateSerialComSearch(float deltaTime)
         {
-            serialComSearchTime += deltaTime;
             for (int i = 0; i < portSearches.Length; i++)
             {
                 if (portSearches[i] == null)
@@ -300,31 +303,31 @@ namespace hypercube
                 }
                 else if (t == serialPortType.SERIAL_TOUCHPANEL)
                 {
+                    forceStringRead = true; //safety, should already be true.
+
                     touchPanelFirmwareVersion = portSearches[i].firmwareVersion;
                     touchPanelStringManager = portSearches[i].getSerialInput(); //we found the touch panel, get calibration and settings data off of it, and then pass it off to the touchScreenInput handler after done.
+
+                    touchPanelStringManager.serial.SendSerialMessage("read0");//send for the config asap.
 
                     //also give it to the touchpanel, this will let other methods call input.touchpanel without getting a null, 
                     //but it wont receive updates until we get a calibration.
                     touchPanel = new touchScreenInputManager(touchPanelStringManager.serial); 
-
-                    touchPanelStringManager.serial.SendSerialMessage("read0"); //send for the config asap. 
+                                     
+#if HYPERCUBE_DEV
+                    castMesh cm = input._get().GetComponent<castMesh>();
+                    if (cm.calibratorBasic)
+                        cm.calibratorBasic.pcbText.color = Color.yellow;  //let the dev know that we have found the pcb.
+#endif
+                    
                     portSearches[i] = null; //stop checking this port for relevance.                   
-                    if (debug)
-                        Debug.Log("Connected to and identified touch panel PCB hardware.");
+
+                    //if (debug)
+                    Debug.Log("Connected to and identified Volume Touch Panel hardware.");
 
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.
                     endPortSearch(); 
-                }
-                else if (t == serialPortType.SERIAL_WORKING)
-                {
-                    if (serialComSearchTime > 1f && !portSearches[i].getSerialInput().serial.isConnected) //timeout
-                    {
-                        Destroy(portSearches[i].getSerialInput().serial);
-                        badSerialPorts.Add(portSearches[i].getSerialInput().serial.portName);
-                        portSearches[i] = null; //stop bothering with this guy.
-                    }
-                    //do nothing
                 }
             }
         }
@@ -388,7 +391,6 @@ namespace hypercube
 
 
 #if HYPERCUBE_DEV
-
         bool _recordingMode = false;
         float serialTimeoutIO = 5f;
         public enum pcbState
@@ -399,7 +401,7 @@ namespace hypercube
             WORKING
         }
         public static pcbState pcbIoState = pcbState.INVALID;
-        public IEnumerator _writeSettings(string settingsData) //write this to the pcb
+        public IEnumerator _writeSettings(string settingsData)
         {
             float startTime = Time.timeSinceLevelLoad;
             if (touchPanelStringManager != null && touchPanelStringManager.serial.isConnected)
@@ -408,7 +410,7 @@ namespace hypercube
                 _recordingMode = false;
 
                 //prepare the pcb to accept our data
-                touchPanelStringManager.sendSerialMessage("write0"); //perfect slices
+                touchPanelStringManager.serial.SendSerialMessage("write0"); //settings data
 
                 while (!_recordingMode)
                 {
@@ -417,7 +419,8 @@ namespace hypercube
                     yield return pcbIoState;
                 }
 
-                yield return touchPanelStringManager.sendLargeSerialMessage(settingsData, 128);
+                settingsData = dataFileDict.base64Encode(settingsData);
+                touchPanelStringManager.serial.SendSerialMessage(settingsData);
 
                 while (_recordingMode)//don't exit until we are done.
                 {
@@ -442,9 +445,9 @@ namespace hypercube
 
                 //prepare the pcb to accept our data
                 if (sullied)
-                    touchPanelStringManager.sendSerialMessage("write2");
+                    touchPanelStringManager.serial.SendSerialMessage("write2");
                 else
-                    touchPanelStringManager.sendSerialMessage("write1"); //perfect slices
+                    touchPanelStringManager.serial.SendSerialMessage("write1"); //perfect slices
 
                 while (!_recordingMode)
                 {
@@ -455,7 +458,7 @@ namespace hypercube
 
                 string saveData;
                 utils.vert2Bin(d, out saveData);
-                yield return touchPanelStringManager.sendLargeSerialMessage(saveData, 128);
+                touchPanelStringManager.serial.SendSerialMessage(saveData);
 
                 while (_recordingMode)//don't exit until we are done.
                 {

@@ -46,6 +46,14 @@ public class messageWindow : MonoBehaviour {
         instance.window.SetActive(onOff);
     }
 
+    public static bool isVisible()
+    {
+        if (!instance)
+            return false;
+
+        return instance.window.activeSelf;
+    }
+
     public GameObject window;
     public UnityEngine.UI.Text text;
 

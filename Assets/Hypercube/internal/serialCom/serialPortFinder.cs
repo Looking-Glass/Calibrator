@@ -24,7 +24,7 @@ namespace hypercube
         {
             get; private set;
         }
-        bool sentForcedInit = false;
+//        bool sentForcedInit = false;
 
         public stringInputManager getSerialInput()
         {
@@ -40,7 +40,7 @@ namespace hypercube
             //testSubject.readDataAsString = true;
             timer = 0f;
             type = serialPortType.SERIAL_WORKING;
-            sentForcedInit = false;
+//            sentForcedInit = false;
         }
 
         // we try to read the serial port until we get some config data.
@@ -61,16 +61,15 @@ namespace hypercube
 
             //when we first connect...
             //this will tell the chip to give us an init, even if it isn't mechanically resetting (just in case, for example on osx which does not mechanically reset the chip on connection)
-            if (!sentForcedInit && testSubject.serial.isConnected)
-            {
-#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+//            if (!sentForcedInit && testSubject.serial.isConnected)
+//            {
+//#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+  //              testSubject.serial.SendSerialMessage("reping");  //OSX does not reset the serial port hardware on connect, so we need to get it to tell us again what it is.
+//#endif
+//                sentForcedInit = true;
+//            }
 
-                testSubject.serial.SendSerialMessage("reping");  //OSX does not reset the serial port hardware on connect, so we need to get it to tell us again what it is.
-#endif
-                sentForcedInit = true;
-            }
-
-            testSubject.update(false);
+            testSubject.update(debug);
 
             string data = testSubject.readMessage();
             while (data != null)
@@ -85,7 +84,10 @@ namespace hypercube
                     firmwareVersion = dataFileDict.stringToFloat(toks[2], firmwareVersion);
 
                     if (toks[1] == "touchPanelsPCB")
+                    {
                         type = serialPortType.SERIAL_TOUCHPANEL;
+                        return type; //don't readMessage again. let the calling method do it, now that we are done here.
+                    }
 
                     //TODO add any other kinds of serial ports that need ID here.
                 }

@@ -1,4 +1,27 @@
-﻿using UnityEngine;
+﻿/*  
+Hypercube: Volume Plugin is released under the MIT License:
+
+Copyright 2016 Looking Glass Factory, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy 
+of this software and associated documentation files (the "Software"), to deal 
+in the Software without restriction, including without limitation the rights 
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE 
+OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -41,7 +64,7 @@ namespace hypercube
                 Debug.LogWarning("PCB basic settings seem to have been asked for more than once!");
             pcbSettings = _pcbSettings;
  #if HYPERCUBE_DEV
-           if (calibratorBasic) calibratorBasic.pcbText.text = "<color=yellow>PCB</color>";
+            if (calibratorBasic) calibratorBasic.pcbText.color = Color.yellow;
 #endif
         }
 
@@ -173,7 +196,7 @@ namespace hypercube
             {
                 hasUSBBasic = true;
 #if HYPERCUBE_DEV
-                if (calibratorBasic) calibratorBasic.usbText.text = "<color=yellow>USB</color>";
+                if (calibratorBasic) calibratorBasic.usbText.color = Color.yellow;
 #endif
 
                 string calibrationFile = "";
@@ -306,12 +329,22 @@ namespace hypercube
             resetTransform();
         }
 
+        float usbSettingsTimer = 5f; //used if we have no calibration on start.
         void Update()
         {
             if (!hasCalibration)
             {
+                //keep trying to find usb settings...
+                usbSettingsTimer -= Time.deltaTime;
+                if (usbSettingsTimer < 0f)
+                {
+                    usbSettingsTimer = 1f;
+                    if (loadSettingsFromUSB())
+                        return;
+                }
+
                 //we don't have calibration from usb, if we have pcbSettings try using them
-                if (pcbSettings != "" && input.touchPanel != null) 
+                else if (pcbSettings != "" && input.touchPanel != null) 
                 {
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (!d.loadFromString(pcbSettings))
@@ -539,10 +572,6 @@ namespace hypercube
                 {
                     Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
 
-                    //TODO handle flipping! preferably in the materials
-                    //add lerped uv
-                   // float xLerp = Mathf.Lerp(topLeftUV.x, bottomRightUV.x, targetUV.x);
-                   // float yLerp = Mathf.Lerp(topLeftUV.y, bottomRightUV.y, targetUV.y);
                     uvs.Add(targetUV);
 
                     colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
@@ -588,17 +617,24 @@ namespace hypercube
                     {
                         clr = rTex.GetPixel(x, y);
                         if (!floatToColor(clr.r * w, out xColors[n]))
+                        {
+                            c.targetTexture = null;
                             return false;
+                        }
                         if (!floatToColor(
                            ((clr.g / slices) * h) +  //the position within the current slice
                            (((clr.b * 1000) / (float)slices) * (float)h), out yColors[n]))  //plus the slice's height position within the entire image. The 10 is because the slice number is encoded as .1 per slice
+                        {
+                            c.targetTexture = null;
                             return false;
+                        }
                         n++;
                     }
                 }
             }
             catch 
             {
+                c.targetTexture = null;
                 Debug.LogError("Something was wrong with the sully texture.  Check that the proper shader was set in the castMesh sullyColorShader.");
                 return false;
             }

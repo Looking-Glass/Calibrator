@@ -31,6 +31,7 @@ namespace hypercube
             sizeWInput.text = d.getValue("projectionCentimeterWidth", "20");
             sizeHInput.text = d.getValue("projectionCentimeterHeight", "12");
             sizeDInput.text = d.getValue("projectionCentimeterDepth", "20");
+            onTextUpdate();
 
             base.OnEnable();
         }
@@ -71,9 +72,9 @@ namespace hypercube
 		public void onTextUpdate()
 		{
 			#if HYPERCUBE_DEV
-			float x = dataFileDict.stringToFloat(sizeWInput.text, -1f);
-			float y = dataFileDict.stringToFloat(sizeHInput.text, -1f);
-			float z = dataFileDict.stringToFloat(sizeDInput.text, -1f);
+			float x = dataFileDict.stringToFloat(sizeWInput.text, 1f);
+			float y = dataFileDict.stringToFloat(sizeHInput.text, 1f);
+			float z = dataFileDict.stringToFloat(sizeDInput.text, 1f);
 
 			if (x <= 0f || y <= 0f || z <= 0f)
 				return;

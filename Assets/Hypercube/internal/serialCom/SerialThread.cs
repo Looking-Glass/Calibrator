@@ -273,18 +273,18 @@ public class SerialThread
              //but on a side note... what kind of nutcase designs an API that depends on itself crashing and for the dev to catch that exception to know that the api is 'done'.... wtf Ports.IO?!?!?
         }
         if (byteCount > 0 && inputQueue.Count < maxUnreadMessages)
-           // inputQueue.Enqueue(bytesToStr(bytes, byteCount));
+            //inputQueue.Enqueue(bytesToStr(bytes, bytes.Length));
             inputQueue.Enqueue(System.Text.Encoding.Unicode.GetString(bytes));
 
     }
 
     //from http://stackoverflow.com/questions/472906/how-to-get-a-consistent-byte-representation-of-strings-in-c-sharp-without-manual
-    //static string bytesToStr(byte[] bytes, int count)
-    //{
-    //    char[] chars = new char[count * sizeof(char)];
-    //    System.Buffer.BlockCopy(bytes, 0, chars, 0, count);
-    //    return new string(chars);
-    //}
+//    static string bytesToStr(byte[] bytes, int count)
+//    {
+//        char[] chars = new char[count * sizeof(char)];
+ //       System.Buffer.BlockCopy(bytes, 0, chars, 0, count);
+ //       return new string(chars);
+ //   }
 
 
 }

@@ -3,8 +3,7 @@ using System.Collections;
 
 
 //this class exposes the touch data from Volume to a developer in a way that will be consistent across different models of Volume
-
-//TODO save original local touch coord.
+//do not try to access the raw touch coordinates, these have been abstracted for you: as different devices may have different touch panel resolutions.
 
 namespace hypercube 
 {
