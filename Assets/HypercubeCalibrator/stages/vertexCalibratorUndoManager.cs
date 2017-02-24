@@ -9,7 +9,6 @@ namespace hypercube
 
     public class vertexCalibratorUndoManager 
     {
-        public bool debug = true;
         public const uint undoCount = 25;
 
         List<Vector2[,,]> undoQueue = new List<Vector2[,,]>();
@@ -35,8 +34,6 @@ namespace hypercube
                 undoQueue.RemoveAt(0);
                   
             currentPosition = undoQueue.Count - 1; //set our position to the most current
-
-            if (debug) Debug.Log("RECORD END! current: " + currentPosition + "   count: " +  undoQueue.Count);
         }
 
         public Vector2[,,] undo()
@@ -47,10 +44,8 @@ namespace hypercube
 
             if (currentPosition >= undoQueue.Count || undoQueue.Count == 0)
                 return null;
-
-            if (debug) Debug.Log("current: " + currentPosition + "   count: " +  undoQueue.Count);
             
-            return undoQueue[currentPosition];
+            return deepCopyVertices(undoQueue[currentPosition]);
         }
 
         public Vector2[,,] redo()
@@ -62,9 +57,7 @@ namespace hypercube
             if (currentPosition < 0 || undoQueue.Count == 0)
                 return null;
 
-            if (debug) Debug.Log("current: " + currentPosition + "   count: " +  undoQueue.Count);
-
-            return undoQueue[currentPosition];
+            return deepCopyVertices(undoQueue[currentPosition]);
         }
 
         public static Vector2[,,] deepCopyVertices(Vector2[,,] c)
