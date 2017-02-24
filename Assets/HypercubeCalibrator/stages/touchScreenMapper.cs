@@ -10,6 +10,8 @@ namespace hypercube
         public GameObject arrow;
         public GameObject circle;
 
+        public float circleOffset = .7f;
+
         public hypercubeCamera cam;
 
         enum calibrationStage
@@ -72,7 +74,9 @@ namespace hypercube
                     //hypercube.touchInterface i = new hypercube.touchInterface();
                     //hypercube.input.frontScreen.touches[0]._getInterface(ref i);
                     //outputText.text = hypercube.input.frontScreen.touches[0].id + ":  " + hypercube.input.frontScreen.touches[0].posX + " - " + hypercube.input.frontScreen.touches[0].posY + "\n" + i.rawTouchScreenX + "  " + i.rawTouchScreenY;
-                    circle.transform.position = hypercube.input.touchPanel.touches[0].getWorldPos(cam);
+                    Vector3 worldPos = hypercube.input.touchPanel.touches[0].getWorldPos(cam);
+                    worldPos.z += circleOffset;
+                    circle.transform.position = worldPos;
                 }
             }
         }
