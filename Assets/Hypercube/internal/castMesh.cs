@@ -449,7 +449,6 @@ namespace hypercube
                     //the textures are added by the hypercubeCamera itself.
                 }
                 System.GC.Collect();
-                return;
             }
 
             int slices = getSliceCount();
