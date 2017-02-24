@@ -306,12 +306,22 @@ namespace hypercube
             resetTransform();
         }
 
+        float usbSettingsTimer = 5f; //used if we have no calibration on start.
         void Update()
         {
             if (!hasCalibration)
             {
+                //keep trying to find usb settings...
+                usbSettingsTimer -= Time.deltaTime;
+                if (usbSettingsTimer < 0f)
+                {
+                    usbSettingsTimer = 1f;
+                    if (loadSettingsFromUSB())
+                        return;
+                }
+
                 //we don't have calibration from usb, if we have pcbSettings try using them
-                if (pcbSettings != "" && input.touchPanel != null) 
+                else if (pcbSettings != "" && input.touchPanel != null) 
                 {
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (!d.loadFromString(pcbSettings))
