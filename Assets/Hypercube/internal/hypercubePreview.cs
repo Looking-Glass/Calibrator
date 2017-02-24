@@ -51,7 +51,7 @@ namespace hypercube
         void Start()
         {
             //try in a lazy way to connect ourselves
-            castMesh c = GameObject.FindObjectOfType<castMesh>();
+            castMesh c = castMesh.canvas;
             if (c && !c.preview)
                 c.preview = this;
         }

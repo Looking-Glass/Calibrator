@@ -481,6 +481,15 @@ namespace hypercube
                 decreaseDetail(true);
             }
 
+            //reset all
+            else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                Input.GetKeyDown(KeyCode.R))
+            {
+                vertices = perfectVertices;
+                canvas._setCalibration(vertices);
+                undoMgr.recordUndo(vertices);
+            }
             //reset verts below current articulation level
             else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
             {
@@ -503,15 +512,7 @@ namespace hypercube
                 undoMgr.recordUndo(vertices);
                 canvas._setCalibration(vertices);
             }
-            //reset all
-            else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-                Input.GetKeyDown(KeyCode.T))
-            {
-                vertices = perfectVertices;
-                canvas._setCalibration(vertices);
-                undoMgr.recordUndo(vertices);
-            }
+
 
             else if (Input.GetKeyDown(KeyCode.S))
             {
@@ -633,7 +634,7 @@ namespace hypercube
                             }
                         }
                     }
-                    else if (Input.GetKey(KeyCode.C)) //move all verts along this x
+                    else if (Input.GetKey(KeyCode.C) || Input.GetKey(KeyCode.Y)) //move all verts along this x
                     {
                         if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))//current slice only.
                         {
