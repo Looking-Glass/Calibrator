@@ -46,6 +46,8 @@ namespace hypercube
         public readonly string perfectSlicesFileName = "settings_perfectSlices.txt";
         public readonly string calibratedSlicesFileName = "settings_calibratedSlices.txt";
 
+        public readonly static int defaultSliceCount = 10;
+
         public string volumeModelName { get; private set; }
         public float volumeHardwareVer { get; private set; }
         public static castMesh canvas { get; private set; } //access the existing canvas from anywhere
@@ -69,7 +71,8 @@ namespace hypercube
         }
 
 
-    public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
+        public int getSliceCount() { if (calibrationData == null) return 1; return calibrationData.GetLength(0); } //a safe accessor, since its accessed constantly.
+
         Vector2[,,] calibrationData = null;
 
         public bool flipX = false;  //modifier values, by the user.
@@ -101,6 +104,7 @@ namespace hypercube
         [Tooltip("The materials set here will be applied to the dynamic mesh")]
         public List<Material> canvasMaterials = new List<Material>();
         public Material occlusionMaterial;
+        public Shader casterShader;
 
         [HideInInspector]
         public bool usingCustomDimensions = false; //this is an override so that the canvas can be told to obey the dimensions of some particular output w/h screen other than the game window
@@ -134,8 +138,6 @@ namespace hypercube
 
             return true;
         }
-
-        public Material casterMaterial;
 
         private void Awake()
         {
@@ -318,13 +320,6 @@ namespace hypercube
             if (!sliceMesh)
                 return;
 
-            if (preview)
-            {
-                preview.sliceCount = getSliceCount();
-                preview.sliceDistance = 1f / (float)preview.sliceCount;
-                preview.updateMesh();
-            }
-
             updateMesh();
             resetTransform();
         }
@@ -428,7 +423,8 @@ namespace hypercube
                 return;
             foreach (Material m in r.sharedMaterials)
             {
-                m.SetFloat("_Mod", value);
+                if (m)
+                    m.SetFloat("_Mod", value);
             }
         }
 
@@ -438,19 +434,21 @@ namespace hypercube
             if (!sliceMesh || calibrationData == null)
                 return;
 
+           
 
-            if (canvasMaterials.Count == 0)
+            if (getSliceCount() != canvasMaterials.Count)
             {
-
-                //TODO this should be dynamic... filling in any gaps with the default material, connected to the default texture
-                Debug.LogError("Canvas materials have not been set!  Please define what materials you want to apply to each slice in the hypercubeCanvas component.");
-                return;
-            }
-
-
-            if (getSliceCount() > canvasMaterials.Count)
-            {
-                Debug.LogWarning("Can't add more than " + canvasMaterials.Count + " slices, because only " + canvasMaterials.Count + " canvas materials are defined.");
+                //fill the material array in such a way as to respect any elements that have been overriden by the dev.
+                for (int i = 0; i < getSliceCount(); i++)
+                {
+                    if (canvasMaterials.Count <= i)
+                        canvasMaterials.Add(new Material(casterShader));
+                    else if (canvasMaterials[i] == null)
+                        canvasMaterials[i] = new Material(casterShader);
+                    
+                    //the textures are added by the hypercubeCamera itself.
+                }
+                System.GC.Collect();
                 return;
             }
 

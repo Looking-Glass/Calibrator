@@ -39,6 +39,7 @@ namespace hypercube
         public float sliceDistance = .1f;
 
         public Material[] previewMaterials;
+        public Shader previewShader;
         public Material previewOccludedMaterial;
 
         bool occludedMode = false;
@@ -59,7 +60,13 @@ namespace hypercube
         void OnValidate()
         {
             if (previewMaterials.Length < 1)
-                Debug.LogError("Preview has no items in it's material list.  It needs to be able to choose from materials to apply to it's slices.");
+            {
+                hypercubeCamera c = GameObject.FindObjectOfType<hypercubeCamera>();
+                if (c)
+                    updateMaterials(c);
+                if (previewMaterials.Length < 1)
+                    return;
+            }
 
             if (sliceCount < 1)
                 sliceCount = 1;
@@ -70,26 +77,39 @@ namespace hypercube
             updateMesh();
         }
 
+        public void updateMaterials(hypercubeCamera c)
+        {
+            //fill the material array in such a way as to respect any elements that have been overriden by the dev.
+
+            List<Material> mats = new List<Material>(previewMaterials);
+            int count = c.sliceTextures.Length;
+            while (mats.Count > count)
+                mats.RemoveAt(mats.Count - 1);//rip the end off if its too many.
+            
+            for (int i = 0; i < count; i++)
+            {
+                if (mats.Count <= i)
+                    mats.Add(new Material(previewShader));
+                else if (mats[i] == null)
+                    mats[i] = new Material(previewShader);
+
+                mats[i].mainTexture = c.sliceTextures[i];
+            }
+            previewMaterials = mats.ToArray();
+            updateMesh();
+        }
+
         public void updateMesh()
         {
-            if (previewMaterials.Length == 0)
-            {
-                Debug.LogError("Canvas materials have not been set!  Please define what materials you want to apply to each slice in the hypercubeCanvas component.");
-                return;
-            }
+            sliceCount = previewMaterials.Length;
 
             if (sliceCount < 1)
             {
                 sliceCount = 1;
                 return;
             }
-
-            if (sliceCount > previewMaterials.Length)
-            {
-                Debug.LogWarning("Can't add more than " + previewMaterials.Length + " slices, because only " + previewMaterials.Length + " canvas materials are defined.");
-                sliceCount = previewMaterials.Length;
-                return;
-            }
+                
+            sliceDistance = 1f / (float)sliceCount;
 
             Vector3[] verts = new Vector3[4 * sliceCount]; //4 verts in a quad * slices * dimensions  
             Vector2[] uvs = new Vector2[4 * sliceCount];
