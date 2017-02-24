@@ -138,7 +138,7 @@ using System.Collections.Generic;
             }
             catch
             {
-                Debug.LogWarning("Hypercube settings configuration is faulty. The scale aspect ratio of the Volumetric display has not been set or has 0 values! Run calibrator again!");
+                Debug.LogWarning("Hypercube configuration is invalid. The scale aspect ratio of the Volumetric display has not been set or has 0 values! Run calibrator again!");
             }
 
             if (transform.hasChanged)

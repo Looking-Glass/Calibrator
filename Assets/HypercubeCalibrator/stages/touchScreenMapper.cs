@@ -161,8 +161,8 @@ namespace hypercube
             dataFileDict d = cam.localCastMesh.gameObject.GetComponent<dataFileDict>();
 
             //gather normalized limits
-            float resX = d.getValueAsFloat("touchScreenResX", 800f);
-            float resY = d.getValueAsFloat("touchScreenResY", 480f);
+            float resX = d.getValueAsFloat("touchScreenResX_0", 800f);
+            float resY = d.getValueAsFloat("touchScreenResY_0", 480f);
 
             float top = (float)(ULy + URy) / 2f;//use averages.
             float bottom = (float)(LLy + LRy) / 2f;
@@ -174,10 +174,10 @@ namespace hypercube
             left /= resX;
             right /= resX;
 
-            d.setValue("touchScreenMapTop", top);
-            d.setValue("touchScreenMapBottom", bottom);
-            d.setValue("touchScreenMapLeft", left);
-            d.setValue("touchScreenMapRight", right);
+            d.setValue("touchScreenMapTop_0", top);
+            d.setValue("touchScreenMapBottom_0", bottom);
+            d.setValue("touchScreenMapLeft_0", left);
+            d.setValue("touchScreenMapRight_0", right);
 
 #if HYPERCUBE_INPUT
             hypercube.input.touchPanel.setTouchScreenDims(d);

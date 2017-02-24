@@ -336,11 +336,11 @@ namespace hypercube
         public static void mapToRange(float x, float y, float top, float right, float bottom, float left, out float outX, out float outY)
         {
             outX = map(x, left, right, 0f, 1.0f);
-            outY = map(y, top, bottom, 0f, 1.0f);
+            outY = map(y, bottom, top, 0f, 1.0f);
         }
         static float map(float s, float a1, float a2, float b1, float b2)
         {
-            //return Mathf.Lerp(b1, b2, Mathf.InverseLerp(a1, a2, s));
+            //return Mathf.Lerp(b1, b2, Mathf.InverseLerp(a1, a2, s)); //also works fine.
             return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
         }
 
