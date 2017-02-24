@@ -71,7 +71,8 @@ namespace hypercube
 
         void getNearestOptionX(uint v, out uint less, out uint greater)
         {
-            less = greater = 0;
+            less = 0;
+            greater = 0;
             foreach (uint o in xOptions[displayLevelX])
             {
                 if (v == o)
@@ -81,7 +82,7 @@ namespace hypercube
                     return;
                 }
                 if (o < v)
-                    less = v; 
+                    less = o; 
                 else
                 {
                     greater = o;
@@ -101,7 +102,7 @@ namespace hypercube
                     return;
                 }
                 if (o < v)
-                    less = v; 
+                    less = o; 
                 else
                 {
                     greater = o;
@@ -195,6 +196,7 @@ namespace hypercube
 
             updateTextures();
             canvas._setCalibration(vertices);
+            undoMgr.recordUndo(vertices);
 
             base.OnEnable();
         }
@@ -349,45 +351,7 @@ namespace hypercube
             canvas._setCalibration(vertices);
             updateTextures();
         }
-
-        //public float[] getCalibrationData()
-        //{
-        //    int sliceCount = slicesX * slicesY ;
-        //    float[] data = new float[sliceCount * articulationX * articulationY * 2];
-        //    uint d = 0;
-        //    for (int s = 0; s < sliceCount; s++)
-        //    {
-        //        for (int y = 0; y <= articulationY; y++)
-        //        {
-        //            for (int x = 0; x <= articulationX; x++)
-        //            {
-        //                data[d] = vertices[s, x, y].x;
-        //                d++;
-        //                data[d] = vertices[s, x, y].y;                     
-        //                d++;
-        //            }
-        //        }
-        //    }
-        //    return data;
-        //}
-
-
-
-
-        //public void skew()
-        //{
-        //    //skews
-        //    topM.x += skews[s].x;
-        //    lowM.x -= skews[s].x;
-        //    midL.y += skews[s].y;
-        //    midR.y -= skews[s].y;
-
-        //    //interpolate the alternate axis on the skew so that edges will always be straight ( fix elbows caused when we skew)
-        //    topM.y = Mathf.Lerp(topL.y, topR.y, Mathf.InverseLerp(topL.x, topR.x, topM.x));
-        //    lowM.y = Mathf.Lerp(lowL.y, lowR.y, Mathf.InverseLerp(lowL.x, lowR.x, lowM.x));
-        //    midL.x = Mathf.Lerp(topL.x, lowL.x, Mathf.InverseLerp(topL.y, lowL.y, midL.y));
-        //    midR.x = Mathf.Lerp(topR.x, lowR.x, Mathf.InverseLerp(topR.y, lowR.y, midR.y));
-        //}
+            
 
 
         //1 to reset perfect slices, 0 to reset calibrated slices
@@ -430,6 +394,7 @@ namespace hypercube
                     }
                 }
             }
+            undoMgr.clear(); //these will not work anymore for us.
         }
 
 
@@ -452,55 +417,102 @@ namespace hypercube
             vertices[slice, xVert, yVert].y = perfectVertices[slice, xVert, yVert].y;
         }
 
+
+        void increaseDetail(bool updateTex)
+        {
+            if (cubeMode) //get out of cubeMode into normal editing
+            {
+                cubeMode = false;
+                if (updateTex)
+                    updateTextures();
+                return;
+            }
+
+            int oldX = displayLevelX;
+            int oldY = displayLevelY;
+            displayLevelX++;
+            displayLevelY++;
+
+            validateDisplayLevel();
+            if (displayLevelX != oldX)
+                selectionX *= 2;
+            if (displayLevelY != oldY)
+                selectionY *= 2;
+            if (updateTex)
+                updateTextures();
+        }
+        void decreaseDetail(bool updateTex)
+        {
+            if (displayLevelX == 0 && displayLevelY == 0 && !cubeMode) //enter cubeMode
+            {
+                cubeMode = true;
+                if (updateTex)
+                    updateTextures();
+                selectionS = selectionS < slicesX * slicesY / 2 ? 0 : slicesX * slicesY - 1;  //make the slice selection snap to either 0 or last depending on which is closer to current
+                return;
+            }
+
+            int oldX = displayLevelX;
+            int oldY = displayLevelY;
+            displayLevelX--;
+            displayLevelY--;
+
+            validateDisplayLevel();
+            if (displayLevelX != oldX)
+                selectionX /= 2;
+            if (displayLevelY != oldY)
+                selectionY /= 2;
+
+            if (updateTex)
+                updateTextures();
+        }
+
+
         bool vertChangeOccurred = false;
         void Update()
         {
 
             if (Input.GetKeyDown(KeyCode.Equals)) // increase detail
-            {
-                if (cubeMode) //get out of cubeMode into normal editing
-                {
-                    cubeMode = false;
-                    updateTextures();
-                    return;
-                }
-                
-                int oldX = displayLevelX;
-                int oldY = displayLevelY;
-                displayLevelX++;
-                displayLevelY++;
-
-                validateDisplayLevel();
-                if (displayLevelX != oldX)
-                    selectionX *= 2;
-                if (displayLevelY != oldY)
-                    selectionY *= 2;
-
-                updateTextures();
+            {               
+                increaseDetail(true);
             }
             else if (Input.GetKeyDown(KeyCode.Minus)) //decrease detail
             {
-                if (displayLevelX == 0 && displayLevelY == 0 && !cubeMode) //enter cubeMode
-                {
-                    cubeMode = true;
-                    updateTextures();
-                    selectionS = selectionS < slicesX * slicesY / 2 ? 0 : slicesX * slicesY - 1;  //make the slice selection snap to either 0 or last depending on which is closer to current
-                    return;
-                }
-
-                int oldX = displayLevelX;
-                int oldY = displayLevelY;
-                displayLevelX--;
-                displayLevelY--;
-
-                validateDisplayLevel();
-                if (displayLevelX != oldX)
-                    selectionX /= 2;
-                if (displayLevelY != oldY)
-                    selectionY /= 2;
-
-                updateTextures();
+                decreaseDetail(true);
             }
+
+            //reset verts below current articulation level
+            else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
+            {
+                for (int y = 0; y < articulationY; y++)
+                {                  
+                    for (int x = 0; x < articulationX; x++)
+                    {
+                        if (!xOptionContains(x) || !yOptionContains(y))
+                        {
+                            // "reset" this vert by moving it to its proper position based on the nearest active x values
+                            uint less;
+                            uint greater;
+                            getNearestOptionY((uint)y, out less, out greater);
+                            vertices[selectionS, x, y].x = Mathf.Lerp(vertices[selectionS, x, less].x, vertices[selectionS, x, greater].x, Mathf.InverseLerp((float)less, (float)greater, (float)y));
+                            getNearestOptionX((uint)y, out less, out greater);
+                            vertices[selectionS, x, y].y = Mathf.Lerp(vertices[selectionS, less, y].y, vertices[selectionS, greater, y].y, Mathf.InverseLerp((float)less, (float)greater, (float)x));
+                        }
+                    }
+                }
+                undoMgr.recordUndo(vertices);
+                canvas._setCalibration(vertices);
+            }
+            //reset all
+            else if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                Input.GetKeyDown(KeyCode.T))
+            {
+                vertices = perfectVertices;
+                canvas._setCalibration(vertices);
+                undoMgr.recordUndo(vertices);
+            }
+
             else if (Input.GetKeyDown(KeyCode.S))
             {
                               
@@ -515,7 +527,6 @@ namespace hypercube
                 selectionY++;
                 if (selectionY >= articulationY || cubeMode)
                     selectionY = articulationY - 1;
-
 
                 updateTextures();
             }
@@ -573,51 +584,27 @@ namespace hypercube
             }
 
 
-            //reset verts below current articulation level
-            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && Input.GetKeyDown(KeyCode.R))
-            {
-                for (int y = 0; y < articulationY; y++)
-                {                  
-                    for (int x = 0; x < articulationX; x++)
-                    {
-                        if (!xOptionContains(x) || !yOptionContains(y))
-                        {
-                            // "reset" this vert by moving it to its proper position based on the nearest active x values
-                            uint less;
-                            uint greater;
-                            getNearestOptionX((uint)x, out less, out greater);
-                            vertices[selectionS, x, y].x = Mathf.Lerp(vertices[selectionS, less, y].x, vertices[selectionS, greater, y].x, Mathf.InverseLerp(less, greater, x));
-                            getNearestOptionY((uint)y, out less, out greater);
-                            vertices[selectionS, x, y].y = Mathf.Lerp(vertices[selectionS, x, less].y, vertices[selectionS, x, greater].y, Mathf.InverseLerp(less, greater, y));
-                        }
-                    }
-                }
-                undoMgr.recordUndo(vertices);
-                canvas._setCalibration(vertices);
-            }
-            //reset all
-            if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-                Input.GetKeyDown(KeyCode.R))
-            {
-                vertices = perfectVertices;
-                canvas._setCalibration(vertices);
-                undoMgr.recordUndo(vertices);
-            }
-
             //undo
             if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) ||
                 Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand)
                 ) && Input.GetKeyDown(KeyCode.Z))
             {
-                    canvas._setCalibration(undoMgr.undo());
+                Vector2[,,] verts = undoMgr.undo();
+                if (verts == null)
                     return;
+                vertices = verts;
+                canvas._setCalibration(vertices);
+                return;
             }
             //redo
             if ((Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)
             ) && Input.GetKeyDown(KeyCode.Z))
             {
-                canvas._setCalibration(undoMgr.redo());
+                Vector2[,,] verts = undoMgr.redo();
+                if (verts == null)
+                    return;
+                vertices = verts;
+                canvas._setCalibration(vertices);
                 return;
             }
 
@@ -1255,7 +1242,7 @@ namespace hypercube
                 Vector3 cmPos = selectionMesh.transform.localPosition;
                 cmPos.z = 1.5f;
                 cubeModeMesh.SetPosition(0, cmPos);
-                cubeModeMesh.widthMultiplier = dotSize;
+                cubeModeMesh.widthMultiplier = dotSize * 2f;
             }
             else
                 cubeModeMesh.gameObject.SetActive(false);

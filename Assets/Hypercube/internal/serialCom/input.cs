@@ -419,6 +419,7 @@ namespace hypercube
                     yield return pcbIoState;
                 }
 
+                settingsData = dataFileDict.base64Encode(settingsData);
                 touchPanelStringManager.serial.SendSerialMessage(settingsData);
 
                 while (_recordingMode)//don't exit until we are done.

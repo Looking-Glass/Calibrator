@@ -9,27 +9,34 @@ namespace hypercube
 
     public class vertexCalibratorUndoManager 
     {
-
+        public bool debug = true;
         public const uint undoCount = 25;
 
         List<Vector2[,,]> undoQueue = new List<Vector2[,,]>();
 
         int currentPosition;
 
+        public void clear()
+        {
+            undoQueue = new List<Vector2[,,]>();
+            System.GC.Collect();
+        }
+
         public void recordUndo(Vector2[,,] u)
         {
             //if we have made some undo's, the ones that we have undone should be removed before adding the new undo
             if (undoQueue.Count - (currentPosition + 1) > 0)
-                undoQueue.RemoveRange(currentPosition + 1, undoQueue.Count - (currentPosition + 1) );
-
+                undoQueue.RemoveRange(currentPosition + 1, undoQueue.Count - (currentPosition + 1));
 
             undoQueue.Add(deepCopyVertices(u));
 
             //get rid of too many undo's
             while (undoQueue.Count > undoCount)
                 undoQueue.RemoveAt(0);
-
+                  
             currentPosition = undoQueue.Count - 1; //set our position to the most current
+
+            if (debug) Debug.Log("RECORD END! current: " + currentPosition + "   count: " +  undoQueue.Count);
         }
 
         public Vector2[,,] undo()
@@ -40,6 +47,8 @@ namespace hypercube
 
             if (currentPosition >= undoQueue.Count || undoQueue.Count == 0)
                 return null;
+
+            if (debug) Debug.Log("current: " + currentPosition + "   count: " +  undoQueue.Count);
             
             return undoQueue[currentPosition];
         }
@@ -52,6 +61,8 @@ namespace hypercube
 
             if (currentPosition < 0 || undoQueue.Count == 0)
                 return null;
+
+            if (debug) Debug.Log("current: " + currentPosition + "   count: " +  undoQueue.Count);
 
             return undoQueue[currentPosition];
         }
