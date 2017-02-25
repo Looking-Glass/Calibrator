@@ -190,7 +190,7 @@ namespace hypercube
         void Update()
         {
 
-            if (forceStringRead && touchPanel == null && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
+            if (forceStringRead && touchPanel != null && touchPanelStringManager != null && touchPanelStringManager.serial.enabled) //we are still getting config and calibration from pcb (or are being forced to by forceStringRead)
             {
                 updateGetSettingsFromPCB();
             }
@@ -262,9 +262,9 @@ namespace hypercube
 #endif
                     }
                     else if (data != "data1::::done" && data.StartsWith("data1::") )
-                        Debug.LogWarning("Received faulty 'perfect' vertex data from PCB");
+                        Debug.Log("Hypercube: 'perfect' vertex data not found on Touch Panel PCB");
                     else if (data != "data2::::done" && data.StartsWith("data2::"))
-                        Debug.LogWarning("Received faulty 'calibrated' vertex data from PCB");   
+                        Debug.Log("Hypercube: 'calibrated' vertex data not found on Touch Panel PCB");   
                         
                     forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
                     return;
@@ -324,7 +324,7 @@ namespace hypercube
                     portSearches[i] = null; //stop checking this port for relevance.                   
 
                     //if (debug)
-                    Debug.Log("Connected to and identified Volume Touch Panel hardware.");
+                    Debug.Log("Hypercube: Successfully connected to Volume Touch Panel running firmware v" + touchPanelFirmwareVersion);
 
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.

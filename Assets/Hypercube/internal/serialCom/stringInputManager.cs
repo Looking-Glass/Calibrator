@@ -40,8 +40,8 @@ namespace hypercube
             string data = serial.ReadSerialMessage();
             while (data != null && data != "")
             {
-                if (debug)
-                    Debug.Log("stringInputMgr: " + data);
+              //  if (debug)
+              //     Debug.Log("stringInputMgr: " + data);
 
                 //byte[] b = getBytes(data);
                 byte[] b = System.Text.Encoding.Unicode.GetBytes(data);

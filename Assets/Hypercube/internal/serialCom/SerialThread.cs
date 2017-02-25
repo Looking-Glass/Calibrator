@@ -224,7 +224,7 @@ public class SerialThread
     // ------------------------------------------------------------------------
     private void RunOnce()
     {
-        try
+  /*      try
         {
             // Send a message.
             if (outputQueue.Count != 0)
@@ -252,7 +252,7 @@ public class SerialThread
         {
             // This is normal, not everytime we have a report from the serial device
             return;
-        }
+        }*/
 
    //     if (readDataAsString)
   //          return;
@@ -275,6 +275,19 @@ public class SerialThread
         if (byteCount > 0 && inputQueue.Count < maxUnreadMessages)
             //inputQueue.Enqueue(bytesToStr(bytes, bytes.Length));
             inputQueue.Enqueue(System.Text.Encoding.Unicode.GetString(bytes));
+
+        try
+        {
+            // Send a message.
+            if (outputQueue.Count != 0)
+            {
+                string outputMessage = (string)outputQueue.Dequeue();
+                serialPort.Write(outputMessage);
+            }
+        }
+        catch (TimeoutException)
+        {
+        }
 
     }
 
