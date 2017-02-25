@@ -52,6 +52,9 @@ namespace hypercube
         public float volumeHardwareVer { get; private set; }
         public static castMesh canvas { get; private set; } //access the existing canvas from anywhere
 
+        public static int rttResX { get; private set; } //these are the render texture resolutions per slice.
+        public static int rttResY { get; private set; }
+
         //stored aspect ratio multipliers, each with the corresponding axis set to 1
         public Vector3 aspectX { get; private set; }
         public Vector3 aspectY { get; private set; }
@@ -147,6 +150,9 @@ namespace hypercube
 
         private void Awake()
         {
+            rttResX = 512; //default rtt res
+            rttResY = 512; 
+
             hasUSBBasic = false;
             hasCalibration = false;
 
@@ -253,12 +259,16 @@ namespace hypercube
             return hasCalibration;
         }
 
-
+#if HYPERCUBE_DEV
+        public
+#endif
         void applyLoadedSettings(dataFileDict d)
         {             
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
+            rttResX = d.getValueAsInt("sliceResX", rttResX);
+            rttResY = d.getValueAsInt("sliceResY", rttResY);
 
 #if !UNITY_EDITOR
             //set the res, if it is different.

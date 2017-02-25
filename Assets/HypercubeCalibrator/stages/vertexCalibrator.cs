@@ -194,6 +194,8 @@ namespace hypercube
             setOptions(out xOptions, articulationX);
             setOptions(out yOptions, articulationY);
 
+            castMesh.canvas.applyLoadedSettings(d); //in case texture res has changed.
+
             updateTextures();
             canvas._setCalibration(vertices);
             undoMgr.recordUndo(vertices);
@@ -1113,7 +1115,12 @@ namespace hypercube
             int sliceCount = slicesX * slicesY;
 
             //first, recreate the gameObject and mesh arrays if our slice number has changed
-            if (sliceMaterials == null || sliceTextures == null || sliceMaterials.Length != sliceCount || sliceTextures.Length != sliceCount) 
+            if (sliceMaterials == null || sliceTextures == null || 
+                sliceMaterials.Length != sliceCount || 
+                sliceTextures.Length != sliceCount ||
+                sliceTextures[0].width != castMesh.rttResX ||
+                sliceTextures[0].height != castMesh.rttResY
+            ) 
             {
                 //clean up any last run
                 if (sliceMaterials != null || sliceTextures != null)
@@ -1133,7 +1140,10 @@ namespace hypercube
                 for (int s = 0; s < sliceCount; s++)
                 {
                     sliceMaterials[s] = new Material(sliceShader);
-                    sliceTextures[s] = new RenderTexture(renderResolution, renderResolution, 24, RenderTextureFormat.ARGB32);
+                    sliceTextures[s] = new RenderTexture(castMesh.rttResX, castMesh.rttResY, 24, RenderTextureFormat.ARGBFloat);
+                    sliceTextures[s].filterMode = FilterMode.Trilinear;
+                    sliceTextures[s].wrapMode = TextureWrapMode.Clamp;
+                    sliceTextures[s].antiAliasing = 1;
                     sliceMaterials[s].SetTexture("_MainTex", sliceTextures[s]);
                 }
             }
@@ -1250,6 +1260,8 @@ namespace hypercube
 
 
             renderCam.targetTexture = sliceTextures[slice];
+            renderCam.aspect = 1f; //(float)castMesh.rttResX / (float)castMesh.rttResY; //make the render take up the whole texture, even if it is not square
+            renderCam.orthographicSize = 1f; //.5f * (float)castMesh.rttResY;
             renderCam.rect = new Rect(0f, 0f, 1f, 1f);
             renderCam.Render();
             renderCam.targetTexture = null;
@@ -1363,6 +1375,7 @@ namespace hypercube
 
             }
 
+            //castMesh.canvas.GetComponent<AudioSource>().Play(); //play sound
             messageWindow.showMessage(sb.ToString());
         }
 

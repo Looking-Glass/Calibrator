@@ -73,7 +73,11 @@ namespace hypercube
             //check for any bad or changed config, and rebuild accordingly.
             if (sliceCount != hypercubeCamera.mainCam.sliceTextures.Length || 
                 previewOccludedMaterial.mainTexture == null ||
-                (previewMaterials.Count > 0 && previewMaterials[0].mainTexture == null)
+                previewMaterials.Count == 0 ||
+                previewMaterials[0].mainTexture == null ||
+                previewMaterials[0].mainTexture.width != castMesh.rttResX ||
+                previewMaterials[0].mainTexture.height != castMesh.rttResY 
+
             )
                 updateMaterials(hypercubeCamera.mainCam);
                 

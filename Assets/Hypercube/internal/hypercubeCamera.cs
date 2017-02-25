@@ -28,7 +28,7 @@ using System.Collections.Generic;
     [ExecuteInEditMode]
     public class hypercubeCamera : MonoBehaviour
     {
-         public const float version = 2.0f;
+         public const float version = 2.1f;
 
          //a static pointer to the last activated hypercubeCameraZ
          public static hypercubeCamera mainCam = null;  
@@ -149,12 +149,14 @@ using System.Collections.Generic;
             if (!localCastMesh)
                 localCastMesh = GameObject.FindObjectOfType<hypercube.castMesh>();
             if (!localCastMesh && sliceTextures.Length < hypercube.castMesh.defaultSliceCount)
-                populateRTTs(hypercube.castMesh.defaultSliceCount, 512, 512); //the default RTT settings if no settings found
+                populateRTTs(hypercube.castMesh.defaultSliceCount, 512, 512); //the default RTT settings if no canvas found.
         }
-        else if (localCastMesh.getSliceCount() != sliceTextures.Length) //dynamically fill the render textures
+        else if (localCastMesh.getSliceCount() != sliceTextures.Length || 
+            !occlusionRTT || sliceTextures.Length == 0 || 
+            sliceTextures[0].width != hypercube.castMesh.rttResX || sliceTextures[0].height != hypercube.castMesh.rttResY
+        ) //dynamically fill the render textures
         {
-            dataFileDict d = localCastMesh.GetComponent<dataFileDict>();
-            populateRTTs(localCastMesh.getSliceCount(), d.getValueAsInt("sliceResX", 512), d.getValueAsInt("sliceResY", 512));
+            populateRTTs(localCastMesh.getSliceCount(), hypercube.castMesh.rttResX, hypercube.castMesh.rttResY);
         }
             
 
@@ -177,7 +179,7 @@ using System.Collections.Generic;
 
         if (transform.hasChanged)
         {
-            resetSettings(); //comment this line out if you will not be scaling your cube during runtime
+            resetSettings(); //you can comment this line out if you will not be scaling your cube during runtime
         }
         render();
     }
@@ -314,6 +316,9 @@ using System.Collections.Generic;
 
     void populateRTTs(int count, int resX, int resY)
     {
+        if (resX == 0 || resY == 0) //probably initializing or something.
+            return;
+        
         if (sliceTextures.Length != count || sliceTextures[0].width != resX || sliceTextures[0].height != resY)
         {
             List<RenderTexture> newTextures = new List<RenderTexture>();

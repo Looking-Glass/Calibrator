@@ -261,10 +261,10 @@ namespace hypercube
                         else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.color = Color.green;  //let the dev know the pcb has viable data, even though we didn't use it.
 #endif
                     }
-                    else if (data != "data1::::done" && data.StartsWith("data1::") )
-                        Debug.Log("Hypercube: 'perfect' vertex data not found on Touch Panel PCB");
-                    else if (data != "data2::::done" && data.StartsWith("data2::"))
-                        Debug.Log("Hypercube: 'calibrated' vertex data not found on Touch Panel PCB");   
+                    else if (data != "data1::::0::done" && data.StartsWith("data1::") )
+                        Debug.LogWarning("Hypercube: Bad 'perfect' vertex data found on Touch Panel PCB");
+                    else if (data != "data2::::0::done" && data.StartsWith("data2::"))
+                        Debug.LogWarning("Hypercube: Bad 'calibrated' vertex data found on Touch Panel PCB");   
                         
                     forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
                     return;
