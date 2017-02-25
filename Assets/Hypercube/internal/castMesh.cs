@@ -420,7 +420,7 @@ namespace hypercube
                      
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (!d.loadFromString(pcbSettings))
-                        Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt.");
+                        Debug.LogWarning("USB settings not found, and PCB basic settings appear to be invalid.");
 
                     applyLoadedSettings(d);
                     pcbSettings = ""; //we applied them, let it be blank to keep this from iterating.

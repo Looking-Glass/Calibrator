@@ -20,6 +20,7 @@ namespace hypercube
         public UnityEngine.UI.Dropdown articulationY;
 
         public UnityEngine.UI.Toggle fpga;
+        public UnityEngine.UI.Toggle saveToPCB;
 
         public castMesh canvas;
 
@@ -58,6 +59,7 @@ namespace hypercube
             slicesY.text = d.getValueAsInt("slicesY", 10).ToString();
 
             fpga.isOn = d.getValueAsBool("useFPGA", false);
+            saveToPCB.isOn = d.getValueAsBool("saveToTP", true);
 
             //add the given options defined in vertexCalibrator.articulations
             System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData> options = new System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData>();
@@ -150,6 +152,7 @@ namespace hypercube
             d.setValue("articulationY", vertexCalibrator.articulations[articulationY.value]);
 
             d.setValue("useFPGA", fpga.isOn);
+            d.setValue("saveToTP", saveToPCB.isOn);
 
 
             //set the res, if it is different.

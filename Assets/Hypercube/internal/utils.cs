@@ -108,13 +108,20 @@ namespace hypercube
         public static void vert2Bin(Vector2[,,] d, out string base64binary)
         {
             byte[] data = vert2Bin(d);
-            base64binary = System.Convert.ToBase64String(data);
+
+            if (data == null)
+                base64binary = "";
+            else
+                base64binary = System.Convert.ToBase64String(data);
         }
 
         //this converts castMesh vertex offsets, into a binary form.
         public static byte[] vert2Bin(Vector2[,,] d)
         {
             List<byte> outData = new List<byte>();
+
+            if (d == null || d.GetLength(0) == 0 || d.GetLength(1) == 0 || d.GetLength(2) == 0) 
+                return null;
 
             int slices = d.GetLength(0);
             int ax = d.GetLength(1);

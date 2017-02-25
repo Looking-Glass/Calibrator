@@ -230,7 +230,7 @@ public class dataFileDict : MonoBehaviour {
                 Debug.Log("WARNING: invalid line in data file: " + fileName + " LINE: " + lines[l]);
         }
 
-        return true;
+        return foundAtLeastOneGoodSetting;
     }
 
     public virtual bool save() //save to disk, note that comments are lost

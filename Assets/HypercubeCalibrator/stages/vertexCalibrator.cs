@@ -1292,8 +1292,11 @@ namespace hypercube
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
 
+
             //touch panel
-            if (input.touchPanel == null || !d)
+            if (!basicSettings.saveToPCB.isOn)
+                sb.Append("Save to PCB: <color=#dddddd>N/A</color>\n");
+            else if (input.touchPanel == null || !d)
                 sb.Append("Save to PCB: <color=#ff0000>FAIL</color>\n");
             else
             {
@@ -1306,21 +1309,24 @@ namespace hypercube
                 else
                     sb.Append("Save settings to PCB: <color=#ff0000>FAIL</color>\n");
 
-
-                yield return input._get()._writeSlices(simplifySlices(perfectVertices), false);//perfect slices
-                if (input.pcbIoState == input.pcbState.SUCCESS)
-                    sb.Append("Save perfect slices to PCB: <color=#00ff00>SUCCESS</color>\n");
+                if (vertices == null || perfectVertices == null)
+                    sb.Append("Save slices to PCB: <color=#ff0000>FAIL: NO VERT DATA (Visit step 2 first)</color>\n"); // Continue to stage 2, and try again.
                 else
-                    sb.Append("Save perfect slices to PCB: <color=#ff0000>FAIL</color>\n");
+                {
+                    yield return input._get()._writeSlices(simplifySlices(perfectVertices), false);//perfect slices
+                    if (input.pcbIoState == input.pcbState.SUCCESS)
+                        sb.Append("Save perfect slices to PCB: <color=#00ff00>SUCCESS</color>\n");
+                    else
+                        sb.Append("Save perfect slices to PCB: <color=#ff0000>FAIL</color>\n");
 
 
-
-       
-                 yield return input._get()._writeSlices(vertices, true);//calibrated slices
-                if (input.pcbIoState == input.pcbState.SUCCESS)
-                    sb.Append("Save calibrated slices to PCB: <color=#00ff00>SUCCESS</color>\n");
-                else
-                    sb.Append("Save calibrated slices to PCB: <color=#ff0000>FAIL</color>\n");
+                      
+                    yield return input._get()._writeSlices(vertices, true);//calibrated slices
+                    if (input.pcbIoState == input.pcbState.SUCCESS)
+                        sb.Append("Save calibrated slices to PCB: <color=#00ff00>SUCCESS</color>\n");
+                    else
+                        sb.Append("Save calibrated slices to PCB: <color=#ff0000>FAIL</color>\n");
+                }
 
                 input.forceStringRead = false;
             }
@@ -1341,36 +1347,42 @@ namespace hypercube
                     yield break; //stop trying to save, if we couldn't do the regular settings
                 }
 
-                string basePath = System.IO.Path.GetDirectoryName(configPath);
-
-                configPath = utils.formatPathToOS(basePath + "/" + canvas.perfectSlicesFileName);
-                //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.perfectSlicesFileName, out configPath))
-                //    sb.Append("Save perfect slices to USB: <color=#ff0000>FAIL</color>\n");
-                //else
+                if (vertices == null || perfectVertices == null)
+                    sb.Append("Save slices to USB: <color=#ff0000>FAIL: NO VERT DATA (Visit step 2 first)</color>\n");
+                else
                 {
-                    byte[] fileBytes = utils.vert2Bin(perfectVertices);
-                    System.IO.File.WriteAllBytes(configPath, fileBytes);
-                    sb.Append("Save perfect slices to USB: <color=#00ff00>SUCCESS</color>\n");
-                }
 
-                configPath = utils.formatPathToOS(basePath + "/" + canvas.calibratedSlicesFileName);
-                //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.calibratedSlicesFileName, out configPath))
-                //    sb.Append("Save calibrated slices to USB: <color=#ff0000>FAIL</color>\n");
-                //else
-                {
-                    byte[] fileBytes = utils.vert2Bin(vertices);
-                    System.IO.File.WriteAllBytes(configPath, fileBytes);
-                    sb.Append("Save calibrated slices to USB: <color=#00ff00>SUCCESS</color>\n");
+                    string basePath = System.IO.Path.GetDirectoryName(configPath);
+
+                    configPath = utils.formatPathToOS(basePath + "/" + canvas.perfectSlicesFileName);
+                    //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.perfectSlicesFileName, out configPath))
+                    //    sb.Append("Save perfect slices to USB: <color=#ff0000>FAIL</color>\n");
+                    //else
+                    {
+                        byte[] fileBytes = utils.vert2Bin(perfectVertices);
+                        System.IO.File.WriteAllBytes(configPath, fileBytes);
+                        sb.Append("Save perfect slices to USB: <color=#00ff00>SUCCESS</color>\n");
+                    }
+
+                    configPath = utils.formatPathToOS(basePath + "/" + canvas.calibratedSlicesFileName);
+                    //if (!utils.getConfigPath(canvas.usbConfigPath + "/" + canvas.calibratedSlicesFileName, out configPath))
+                    //    sb.Append("Save calibrated slices to USB: <color=#ff0000>FAIL</color>\n");
+                    //else
+                    {                   
+                        byte[] fileBytes = utils.vert2Bin(vertices);
+                        System.IO.File.WriteAllBytes(configPath, fileBytes);
+                        sb.Append("Save calibrated slices to USB: <color=#00ff00>SUCCESS</color>\n");
 
 
-                    //sully textures
-                    string rawPath = utils.formatPathToOS(basePath);
-                    int w = d.getValueAsInt("volumeResX", 1920);
-                    int h = d.getValueAsInt("volumeResY", 1080);
-                    if (canvas.generateSullyTextures(w, h, rawPath))
-                        sb.Append("Wrote sully textures to: <color=#00ff00>" + rawPath + "</color>\n");
-                    else
-                        sb.Append("Write sully textures: <color=#ff0000>FAIL</color>\n");
+                        //sully textures
+                        string rawPath = utils.formatPathToOS(basePath);
+                        int w = d.getValueAsInt("volumeResX", 1920);
+                        int h = d.getValueAsInt("volumeResY", 1080);
+                        if (canvas.generateSullyTextures(w, h, rawPath))
+                            sb.Append("Wrote sully textures to USB: <color=#00ff00>" + rawPath + "</color>\n");
+                        else
+                            sb.Append("Write sully textures to USB: <color=#ff0000>FAIL</color>\n");
+                    }
                 }
 
             }
