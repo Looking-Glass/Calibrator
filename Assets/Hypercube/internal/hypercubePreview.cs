@@ -33,10 +33,13 @@ namespace hypercube
     [RequireComponent(typeof(MeshFilter))]
     public class hypercubePreview : MonoBehaviour
     {
+        public static hypercubePreview preview; //access from anywhere.
 
         [HideInInspector]
         public int sliceCount = 12;
         public float sliceDistance = .1f;
+
+        public GameObject previewCamera;
 
         public List<Material> previewMaterials;
         public Shader previewShader;
@@ -47,6 +50,11 @@ namespace hypercube
         {
             occludedMode = onOff;
             updateMesh();
+        }
+
+        void OnEnable()
+        {
+            preview = this;
         }
 
         void Start()

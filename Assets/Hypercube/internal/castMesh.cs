@@ -150,8 +150,24 @@ namespace hypercube
 
         private void Awake()
         {
-            rttResX = 512; //default rtt res
+            //sane defaults, in case we never connect
+            rttResX = 1024; //default rtt res
             rttResY = 512; 
+            setProjectionAspectRatios(10f, 5f, 7f);
+            int defaultSliceCount = 10;
+            calibrationData = new Vector2[defaultSliceCount,2,2]; //default configuration when nothing is connected. a 10 slice system.
+            for (int s = 0; s < defaultSliceCount; s++)
+            {
+                for (int y = 0; y < calibrationData.GetLength(1); y++)
+                {
+                    for (int x = 0; x < calibrationData.GetLength(2); x++)
+                    {
+                        //y offset
+                        float yMod = 1f / (float)defaultSliceCount;
+                        calibrationData[s, x, y] = new Vector2((float)x, ((float)y * yMod) + (s * yMod) ); //x and y can be used raw here, because there are only 2 points: 0 and 1
+                    }
+                }
+            }
 
             hasUSBBasic = false;
             hasCalibration = false;
@@ -165,8 +181,6 @@ namespace hypercube
             Debug.Log("Loading Hypercube Tools v" + hypercubeCamera.version + " on  Unity v" + Application.unityVersion);
 #endif
 
-            if (!preview)
-                preview = GameObject.FindObjectOfType<hypercubePreview>();
 
             if (!loadSettingsFromUSB())
             {
@@ -182,6 +196,38 @@ namespace hypercube
 #endif
                 //poll, and try to use the settings on the PCB once they come in.
                 Shader.SetGlobalFloat("_sliceCount", defaultSliceCount); //temporarily set this for shaders, just in case for the meantime.
+            
+                usePreviewCam(true);//let the user just see the preview
+            }
+            else 
+                usePreviewCam(false); //make sure the normal slice display is shown.
+
+        }
+
+        //the preview cam, if it exists can be used to display to a user if we have no calibration / no volume detected at all
+        //then a coherent scene at least is shown on the monitor
+        void usePreviewCam(bool onOff)
+        {
+            if (!preview)
+                preview = hypercubePreview.preview;
+            if (!preview)
+                preview = GameObject.FindObjectOfType<hypercubePreview>();
+            
+            if (!preview)
+            {
+                GetComponent<Camera>().enabled = true;
+                return;
+            }
+
+            if (onOff) //use preview cam
+            {
+                GetComponent<Camera>().enabled = false;
+                preview.previewCamera.SetActive(true);
+            }
+            else //normal behavior
+            {
+                GetComponent<Camera>().enabled = true;
+                preview.previewCamera.SetActive(false);
             }
         }
 
@@ -264,6 +310,18 @@ namespace hypercube
 #endif
         void applyLoadedSettings(dataFileDict d)
         {             
+
+            //sanity check.  If the dataFileDict doesn't even have these, we are looking at trash data.
+            //ignore it and keep using preview cam if possible.
+            if (!d.hasKey("volumeModelName") &&
+                !d.hasKey("volumeHardwareVersion") &&
+                !d.hasKey("volumeResX")
+            )
+                return;
+
+
+            usePreviewCam(false); 
+
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
@@ -356,6 +414,10 @@ namespace hypercube
                 //we don't have calibration from usb, if we have pcbSettings try using them
                 else if (pcbSettings != "" && input.touchPanel != null) 
                 {
+                    //we appear to have found some settings from the pcb. Try once more to prefer the USB
+                    if (loadSettingsFromUSB())
+                        return; //we found USB, get out of this.
+                     
                     dataFileDict d = GetComponent<dataFileDict>();
                     if (!d.loadFromString(pcbSettings))
                         Debug.LogWarning("USB settings not found, and PCB basic settings appear to be corrupt.");

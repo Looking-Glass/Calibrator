@@ -194,7 +194,7 @@ public class dataFileDict : MonoBehaviour {
 
     public virtual bool loadFromString(string str, bool populate = true)
     {
-                        
+        bool foundAtLeastOneGoodSetting = false;           
         string[] lines = System.Text.RegularExpressions.Regex.Split(str, "\r\n|\r|\n");
         for (int l = 0; l < lines.Length; l++)
         {
@@ -205,6 +205,8 @@ public class dataFileDict : MonoBehaviour {
             string[] kp = lines[l].Split('=');
             if (kp.Length >= 2)
             {
+                foundAtLeastOneGoodSetting = true;
+
                 //handle lines like this: key = myAwesome=Value  otherwise this can break if it's reading in a link.
                 if (kp.Length > 2) 
                 {
