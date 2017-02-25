@@ -27,7 +27,7 @@ using System.Collections.Generic;
 
 
 //This script manages the final mesh that is displayed on Volume (the castMesh)
-//the surface of the castMesh translates the rendered slices into a form that the Volume can display properly.
+//the surface of the castMesh translates the rendered slices into a form that compensates for distortions in the display
 
 namespace hypercube
 {
@@ -46,7 +46,7 @@ namespace hypercube
         public readonly string perfectSlicesFileName = "settings_perfectSlices.txt";
         public readonly string calibratedSlicesFileName = "settings_calibratedSlices.txt";
 
-        public readonly static int defaultSliceCount = 10;
+        public readonly static int defaultSliceCount = 10; //used to generate previews when volume is not connected.
 
         public string volumeModelName { get; private set; }
         public float volumeHardwareVer { get; private set; }

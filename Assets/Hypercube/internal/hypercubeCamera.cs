@@ -236,7 +236,7 @@ using System.Collections.Generic;
     }
 
 
-    public void render()
+    public virtual void render()
     {
 
         if (overlap > 0f && softSliceMethod != renderMode.HARD)
