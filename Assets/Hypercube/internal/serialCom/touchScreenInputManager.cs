@@ -9,7 +9,7 @@ namespace hypercube
     {
         INVALID_TOUCHSCREEN = -1,
 
-        //if a device has multiple touch screens, this is the way to distinguish between them, and give appropriate world cords
+        //if a device has multiple touch screens, this is the way to distinguish between them, and give appropriate world coords
         FRONT_TOUCHSCREEN = 0,
         BACK_TOUCHSCREEN,
         LEFT_TOUCHSCREEN, //relative to the device itself

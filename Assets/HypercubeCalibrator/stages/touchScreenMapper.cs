@@ -184,7 +184,7 @@ namespace hypercube
             d.setValue("touchScreenMapRight_0", right);
 
 #if HYPERCUBE_INPUT
-            hypercube.input.touchPanel.setTouchScreenDims(d);
+            hypercube.input.init(d);
 #endif
         }
 

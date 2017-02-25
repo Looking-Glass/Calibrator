@@ -68,6 +68,9 @@ namespace hypercube
  #if HYPERCUBE_DEV
             if (calibratorBasic) calibratorBasic.pcbText.color = Color.yellow;
 #endif
+            //TODO convert and use the settings if appropriate
+            if (hasUSBBasic)
+                input.init(GetComponent<dataFileDict>()); //we now have our touchpanel, it still needs to get its init.
         }
 
 
@@ -132,6 +135,9 @@ namespace hypercube
             }
 
             calibrationData = data;
+
+            Shader.SetGlobalFloat("_sliceCount", (float)getSliceCount()); //let any shaders that need slice count, know what it is currently.
+
             updateMesh();
 
             hasCalibration = true;
@@ -169,6 +175,7 @@ namespace hypercube
 #endif
 #endif
                 //poll, and try to use the settings on the PCB once they come in.
+                Shader.SetGlobalFloat("_sliceCount", defaultSliceCount); //temporarily set this for shaders, just in case for the meantime.
             }
         }
 
@@ -252,8 +259,6 @@ namespace hypercube
             volumeModelName = d.getValue("volumeModelName", "UNKNOWN!");
             volumeHardwareVer = d.getValueAsFloat("volumeHardwareVersion", -9999f);
 
-
-            Shader.SetGlobalInt("_sliceCount", getSliceCount()); //let any shaders that need slice count, know what it is currently.
 
 #if !UNITY_EDITOR
             //set the res, if it is different.
@@ -354,6 +359,22 @@ namespace hypercube
             {
                 resetTransform();
             }
+
+            //make sure we are using proper textures at all times
+            if (hypercubeCamera.mainCam == null)
+                return;
+
+            if (canvasMaterials.Count > 0 && canvasMaterials[0].mainTexture == null || 
+                occlusionMaterial.mainTexture != hypercubeCamera.mainCam.occlusionRTT)
+            {
+                for (int i = 0; i < canvasMaterials.Count && i < hypercubeCamera.mainCam.sliceTextures.Length; i++)
+                {
+                    canvasMaterials[i].mainTexture = hypercubeCamera.mainCam.sliceTextures[i]; 
+                }
+                occlusionMaterial.mainTexture = hypercubeCamera.mainCam.occlusionRTT;
+                updateMesh();
+            }
+
         }
 
         public float getScreenAspectRatio()
@@ -434,22 +455,36 @@ namespace hypercube
             if (!sliceMesh || calibrationData == null)
                 return;
 
-           
-
             if (getSliceCount() != canvasMaterials.Count)
             {
                 //fill the material array in such a way as to respect any elements that have been overriden by the dev.
+                while (canvasMaterials.Count > getSliceCount())
+                    canvasMaterials.RemoveAt(canvasMaterials.Count - 1);//remove extras.
+                
                 for (int i = 0; i < getSliceCount(); i++)
                 {
-                    if (canvasMaterials.Count <= i)
+                    if (i >= canvasMaterials.Count)
                         canvasMaterials.Add(new Material(casterShader));
                     else if (canvasMaterials[i] == null)
                         canvasMaterials[i] = new Material(casterShader);
                     
-                    //the textures are added by the hypercubeCamera itself.
+                    //the textures are taken care of below.
+
                 }
                 System.GC.Collect();
             }
+
+            //make sure the proper dynamic textures are in place
+            if (hypercubeCamera.mainCam)
+            {
+                for (int i = 0; i < getSliceCount() && i < hypercubeCamera.mainCam.sliceTextures.Length; i++)
+                {
+                    canvasMaterials[i].mainTexture = hypercubeCamera.mainCam.sliceTextures[i];
+                }
+                occlusionMaterial.mainTexture = hypercubeCamera.mainCam.occlusionRTT;
+            }
+
+
 
             int slices = getSliceCount();
 
@@ -521,9 +556,7 @@ namespace hypercube
 
             m.RecalculateBounds();
         }
-
-        //this is used to generate each of 4 sections of every slice.
-        //therefore 1 central column and 1 central row of verts are overlapping per slice, but that is OK.  Keeping the interpolation isolated to this function helps readability a lot
+            
         //returns amount of verts created
         int generateSlice(int startingVert, int slice, ref  List<Vector3> verts, ref List<int> triangles, ref List<Vector2> uvs, ref List<Color> colors)
         {
@@ -561,19 +594,42 @@ namespace hypercube
             }
 
             //uvs
-            float UVW = 1f / (float)(xTesselation -1); //-1 makes sure the UV gets to the end
-            float UVH = 1f / (float)(yTesselation -1 );
-            for (var y = 0; y < yTesselation; y++)
+            if (_drawOccludedMode)
             {
-                for (var x = 0; x < xTesselation; x++)
+                float sliceMod = 1f / (float)getSliceCount();
+
+                float UVW = 1f / (float)(xTesselation -1); //-1 makes sure the UV gets to the end
+                float UVH = sliceMod * 1f / (float)(yTesselation -1 );
+                float heightOffset = sliceMod * slice;
+                for (var y = 0; y < yTesselation; y++)
                 {
-                    Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
+                    for (var x = 0; x < xTesselation; x++)
+                    {
+                        Vector2 targetUV = new Vector2(x * UVW, heightOffset + (y * UVH));  //0-1 UV target
 
-                    uvs.Add(targetUV);
+                        uvs.Add(targetUV);
 
-                    colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
+                        colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
+                    }
                 }
             }
+            else //normal UV path 0 -1
+            {
+                float UVW = 1f / (float)(xTesselation -1); //-1 makes sure the UV gets to the end
+                float UVH = 1f / (float)(yTesselation -1 );
+                for (var y = 0; y < yTesselation; y++)
+                {
+                    for (var x = 0; x < xTesselation; x++)
+                    {
+                        Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
+
+                        uvs.Add(targetUV);
+
+                        colors.Add(new Color(targetUV.x, targetUV.y, slice * .001f, 1f)); //note the current slice is stored in the blue channel
+                    }
+                }
+            }
+
 
             return vertCount;
         }

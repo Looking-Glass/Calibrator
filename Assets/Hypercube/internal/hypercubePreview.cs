@@ -38,7 +38,7 @@ namespace hypercube
         public int sliceCount = 12;
         public float sliceDistance = .1f;
 
-        public Material[] previewMaterials;
+        public List<Material> previewMaterials;
         public Shader previewShader;
         public Material previewOccludedMaterial;
 
@@ -52,62 +52,62 @@ namespace hypercube
         void Start()
         {
             //try in a lazy way to connect ourselves
-            castMesh c = castMesh.canvas;
-            if (c && !c.preview)
-                c.preview = this;
+            if (castMesh.canvas && !castMesh.canvas.preview)
+                castMesh.canvas.preview = this;
+
+            if (hypercubeCamera.mainCam)
+                updateMaterials(hypercubeCamera.mainCam); //try to ensure we get off to a good start.
         }
 
         void OnValidate()
         {
-            if (previewMaterials.Length < 1)
-            {
-                hypercubeCamera c = GameObject.FindObjectOfType<hypercubeCamera>();
-                if (c)
-                    updateMaterials(c);
-                if (previewMaterials.Length < 1)
-                    return;
-            }
-
-            if (sliceCount < 1)
-                sliceCount = 1;
-
-            if (sliceCount > previewMaterials.Length)
-                sliceCount = previewMaterials.Length;
-
             updateMesh();
+        }
+
+        void Update()
+        {
+            //automatically update whatever we are doing to match the current hypercube camera.
+            if (!hypercubeCamera.mainCam)
+                return;
+
+            //check for any bad or changed config, and rebuild accordingly.
+            if (sliceCount != hypercubeCamera.mainCam.sliceTextures.Length || 
+                previewOccludedMaterial.mainTexture == null ||
+                (previewMaterials.Count > 0 && previewMaterials[0].mainTexture == null)
+            )
+                updateMaterials(hypercubeCamera.mainCam);
+                
         }
 
         public void updateMaterials(hypercubeCamera c)
         {
             //fill the material array in such a way as to respect any elements that have been overriden by the dev.
 
-            List<Material> mats = new List<Material>(previewMaterials);
+
             int count = c.sliceTextures.Length;
-            while (mats.Count > count)
-                mats.RemoveAt(mats.Count - 1);//rip the end off if its too many.
+            while (previewMaterials.Count > count)
+                previewMaterials.RemoveAt(previewMaterials.Count - 1);//rip the end off if its too many.
             
             for (int i = 0; i < count; i++)
             {
-                if (mats.Count <= i)
-                    mats.Add(new Material(previewShader));
-                else if (mats[i] == null)
-                    mats[i] = new Material(previewShader);
+                if (previewMaterials.Count <= i)
+                    previewMaterials.Add(new Material(previewShader));
+                else if (previewMaterials[i] == null)
+                    previewMaterials[i] = new Material(previewShader);
 
-                mats[i].mainTexture = c.sliceTextures[i];
+                previewMaterials[i].mainTexture = c.sliceTextures[i];
             }
-            previewMaterials = mats.ToArray();
+
+            previewOccludedMaterial.mainTexture = c.occlusionRTT; //don't forget also to update our occlusion rtt
             updateMesh();
         }
 
         public void updateMesh()
         {
-            sliceCount = previewMaterials.Length;
+            sliceCount = previewMaterials.Count;
 
             if (sliceCount < 1)
-            {
-                sliceCount = 1;
                 return;
-            }
                 
             sliceDistance = 1f / (float)sliceCount;
 

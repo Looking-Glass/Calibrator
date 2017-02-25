@@ -151,8 +151,7 @@ using System.Collections.Generic;
             if (!localCastMesh && sliceTextures.Length < hypercube.castMesh.defaultSliceCount)
                 populateRTTs(hypercube.castMesh.defaultSliceCount, 512, 512); //the default RTT settings if no settings found
         }
-        else if (localCastMesh.getSliceCount() != sliceTextures.Length || 
-            (preview && preview.previewMaterials.Length != sliceTextures.Length)) //dynamically fill the render textures
+        else if (localCastMesh.getSliceCount() != sliceTextures.Length) //dynamically fill the render textures
         {
             dataFileDict d = localCastMesh.GetComponent<dataFileDict>();
             populateRTTs(localCastMesh.getSliceCount(), d.getValueAsInt("sliceResX", 512), d.getValueAsInt("sliceResY", 512));
@@ -330,18 +329,25 @@ using System.Collections.Generic;
             resetSettings();
         }
 
-
+        //give the occlusion RTT the same pixel density as the other methods
+        occlusionRTT = new RenderTexture(resX, resY * count, 24, RenderTextureFormat.ARGBFloat);
+        occlusionRTT.wrapMode = TextureWrapMode.Clamp;
+        occlusionRTT.filterMode = FilterMode.Trilinear;
+        occlusionRTT.antiAliasing = 1;
+            
         //apply them to the castmesh if possible
         if (localCastMesh && count >= localCastMesh.canvasMaterials.Count)
         {           
             for (int i = 0; i < localCastMesh.canvasMaterials.Count; i++)
             {
-                localCastMesh.canvasMaterials[i].SetTexture("_MainTex", sliceTextures[i]);
+                localCastMesh.canvasMaterials[i].mainTexture = sliceTextures[i];
             }
+            localCastMesh.occlusionMaterial.mainTexture = occlusionRTT;
+            localCastMesh.updateMesh();
         }
 
         //apply them to preview if possible
-        if (preview && count != preview.previewMaterials.Length)
+        if (preview && count != preview.previewMaterials.Count)
             preview.updateMaterials(this);
 
 

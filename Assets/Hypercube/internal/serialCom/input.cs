@@ -235,7 +235,8 @@ namespace hypercube
                 if (data.StartsWith("data0::") && data.EndsWith("::done"))
                 {
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
-                    input._get().GetComponent<castMesh>().setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
+                    if (castMesh.canvas)
+                        castMesh.canvas.setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
                     if (toks[1].Contains("useFPGA=True"))
                         touchPanelStringManager.serial.SendSerialMessage("read1"); //give us the perfect slices.  If it uses an FPGA
                     else
