@@ -9,7 +9,7 @@ namespace hypercube
         public UnityEngine.UI.InputField modelName;
         public UnityEngine.UI.InputField versionNumber;
         public UnityEngine.UI.InputField serialNumber;
-
+        
         public UnityEngine.UI.InputField resX;
         public UnityEngine.UI.InputField resY;
         public UnityEngine.UI.InputField sliceResX;
@@ -30,12 +30,14 @@ namespace hypercube
 
         public UnityEngine.UI.Text usbText;
         public UnityEngine.UI.Text pcbText;
+        public UnityEngine.UI.Text fwVersionNumber;
 
-       
+
 
         void OnEnable()
         {
             reloadDataFile();
+            GameObject.FindObjectOfType<hypercubeCamera>().render();
         }
 
         public void reloadDataFile() //if we get delayed info from pcb

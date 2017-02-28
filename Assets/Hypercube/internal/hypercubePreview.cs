@@ -33,6 +33,8 @@ namespace hypercube
     [RequireComponent(typeof(MeshFilter))]
     public class hypercubePreview : MonoBehaviour
     {
+        [Tooltip("If Hypercube does not detect a connected Volume, it will show the preview instead. Uncheck this to always show the sliced view anyway.")]
+        public bool allowIntroView = true; 
         public static hypercubePreview preview; //access from anywhere.
 
         [HideInInspector]
@@ -82,6 +84,7 @@ namespace hypercube
             if (sliceCount != hypercubeCamera.mainCam.sliceTextures.Length || 
                 previewOccludedMaterial.mainTexture == null ||
                 previewMaterials.Count == 0 ||
+				previewMaterials[0] == null ||
                 previewMaterials[0].mainTexture == null ||
                 previewMaterials[0].mainTexture.width != castMesh.rttResX ||
                 previewMaterials[0].mainTexture.height != castMesh.rttResY 
