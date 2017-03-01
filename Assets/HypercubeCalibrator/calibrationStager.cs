@@ -19,6 +19,7 @@ namespace hypercube
         public castMesh canvas;
 		public UnityEngine.UI.InputField[] fullTextInputs; //these are used to prevent space bar from triggering help if we are actually typing something.
 		public UnityEngine.UI.Image helpImage;
+        public GameObject quitDialog;
         public calibrationStage[] stages;
 
         public bool allowNextStage = true; //can be used to block progress if settings are bad
@@ -74,13 +75,19 @@ namespace hypercube
                     return;
                 }
 
+                if (quitDialog.activeSelf) //if the help menu is up shut it, instead of shutting down.
+                {
+                    quitDialog.SetActive(false);
+                    return;
+                }
+
                 if (messageWindow.isVisible()) //close message window, don't shut down in this case.
                 {
                     messageWindow.setVisible(false);
                     return;
                 }
 
-                quit();
+                quitDialog.SetActive(true);
                 return;
             }
 
@@ -89,6 +96,11 @@ namespace hypercube
                 if (messageWindow.isVisible()) 
                 {
                     messageWindow.setVisible(false);
+                    return;
+                }
+                if (quitDialog.activeSelf) 
+                {
+                    quit();
                     return;
                 }
             }
@@ -149,7 +161,7 @@ namespace hypercube
 
         }
 
-        void quit()
+        public void quit()
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
