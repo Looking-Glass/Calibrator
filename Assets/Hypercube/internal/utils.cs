@@ -166,7 +166,7 @@ namespace hypercube
         public static bool bin2Vert(byte[] rawBytes, out Vector2[,,] outData)
         {
             outData = null;
-            if (rawBytes == null)
+            if (rawBytes == null || rawBytes.Length == 0)
                 return false;
 
             try

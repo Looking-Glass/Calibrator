@@ -1300,7 +1300,7 @@ namespace hypercube
                 sb.Append("Save to PCB: <color=#ff0000>FAIL</color>\n");
             else
             {
-                input.forceStringRead = true;
+                input.touchPanel.serial.readDataAsString = true;
 
                 string basicSettingsStr = d.getDataAsString();
                 yield return input._get()._writeSettings(basicSettingsStr);
@@ -1328,7 +1328,7 @@ namespace hypercube
                         sb.Append("Save calibrated slices to PCB: <color=#ff0000>FAIL</color>\n");
                 }
 
-                input.forceStringRead = false;
+                input.touchPanel.serial.readDataAsString = false;
             }
 
 

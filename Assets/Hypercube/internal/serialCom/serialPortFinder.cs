@@ -26,19 +26,19 @@ namespace hypercube
         }
 //        bool sentForcedInit = false;
 
-        public stringInputManager getSerialInput()
+        public SerialController getSerialInput()
         {
             return testSubject;
         }
-        stringInputManager testSubject = null;
+        SerialController testSubject = null;
 
         serialPortType type = serialPortType.SERIAL_UNKNOWN;
 
         public void identifyPort(SerialController s)
         {
             hypercube.input._debugLog("Attempting connection to: " + s.portName);
-            testSubject = new stringInputManager(s);
-            //testSubject.readDataAsString = true;
+            testSubject = s;
+            testSubject.readDataAsString = true;
             timer = 0f;
             type = serialPortType.SERIAL_WORKING;
 //            sentForcedInit = false;
@@ -70,12 +70,10 @@ namespace hypercube
 //                sentForcedInit = true;
 //            }
 
-            testSubject.update();
-
-            string data = testSubject.readMessage();
+            string data = testSubject.ReadSerialMessage();
             while (data != null)
             {
-                //input._debugLog("serial port finder: " + data);
+                input._debugLog("IN: " + data);
 
                 if (data.StartsWith("firmwareVersion::"))
                 {
@@ -91,7 +89,7 @@ namespace hypercube
                     //TODO add any other kinds of serial ports that need ID here.
                 }
 
-                data = testSubject.readMessage();
+                data = testSubject.ReadSerialMessage();
             }
 
             return type;
