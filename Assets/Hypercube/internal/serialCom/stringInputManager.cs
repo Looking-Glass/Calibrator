@@ -31,12 +31,11 @@ namespace hypercube
             string dataToStr = System.Text.Encoding.ASCII.GetString(dataChunk);
             messages.Enqueue(dataToStr);
 
-            if (input._debug)
-                Debug.Log("stringInputMgr: " + dataToStr);
+            input._debugLog("IN: " + dataToStr);
         }
 
 
-        public override void update(bool debug)
+        public override void update()
         {
             string data = serial.ReadSerialMessage();
             while (data != null && data != "")
@@ -46,7 +45,7 @@ namespace hypercube
 
                 //byte[] b = getBytes(data);
                 byte[] b = System.Text.Encoding.Unicode.GetBytes(data);
-                addData(b);
+                addData(b); //calls processData
 
                 data = serial.ReadSerialMessage();
             }

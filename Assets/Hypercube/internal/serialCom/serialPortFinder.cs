@@ -17,7 +17,6 @@ namespace hypercube
 
     public class serialPortFinder
     {
-        public bool debug;
         public float timeOut = 4f;
         float timer = 0f;
 
@@ -37,6 +36,7 @@ namespace hypercube
 
         public void identifyPort(SerialController s)
         {
+            hypercube.input._debugLog("Attempting connection to: " + s.portName);
             testSubject = new stringInputManager(s);
             //testSubject.readDataAsString = true;
             timer = 0f;
@@ -70,14 +70,12 @@ namespace hypercube
 //                sentForcedInit = true;
 //            }
 
-            testSubject.update(debug);
+            testSubject.update();
 
             string data = testSubject.readMessage();
             while (data != null)
             {
-                if (debug)
-                    Debug.Log("serial port finder: " + data);
-
+                //input._debugLog("serial port finder: " + data);
 
                 if (data.StartsWith("firmwareVersion::"))
                 {

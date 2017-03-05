@@ -19,6 +19,7 @@ namespace hypercube
         //singleton pattern
         private static input instance = null;
         public static input _get() { return instance; }
+        public static void _debugLog(string logText) { if (!instance) return;  if (instance.debug) Debug.Log(logText); if (instance.debugText) instance.debugText.text += logText + "\n"; }
         void Awake()
         {
             if (instance != null && instance != this)
@@ -42,6 +43,7 @@ namespace hypercube
         public int maxUnreadMessage = 5;
         public int maxAllowedFailure = 3;
         public bool debug = false;
+        public UnityEngine.UI.Text debugText = null;
         public static bool _debug
         {
             get
@@ -159,10 +161,8 @@ namespace hypercube
 
             portSearches = new serialPortFinder[names.Count];
             for (int i = 0; i < portSearches.Length; i++)
-            {
- 
+            {     
                 portSearches[i] = new serialPortFinder();
-                portSearches[i].debug = debug;
                 portSearches[i].identifyPort(createInputSerialPort(names[i])); //add a component that manages every port, and set off to identify what it is.
             }
                 
@@ -195,7 +195,7 @@ namespace hypercube
             }
             else if (touchPanel != null && touchPanel.serial.enabled) //normal path
             {
-                touchPanel.update(debug);
+                touchPanel.update();
             }
             else //still searching for serial ports.
             {                   
@@ -215,7 +215,7 @@ namespace hypercube
         float repingForDataTime = 1f;
         void updateGetSettingsFromPCB()
         {
-            touchPanelStringManager.update(debug);
+            touchPanelStringManager.update();
 
             string data = touchPanelStringManager.readMessage();
 
@@ -233,6 +233,7 @@ namespace hypercube
             {
                 if (data.StartsWith("data0::") && data.EndsWith("::done"))
                 {
+                    input._debugLog("<color=#00ff00>Touch Panel config received. Check for stored calibration...</color>");
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     if (castMesh.canvas)
                         castMesh.canvas.setPCBbasicSettings(toks[1]); //store it in the castMesh... it will use it if needed, ignore it if it already has USB settings.
@@ -244,6 +245,7 @@ namespace hypercube
                 }
                 else if (data.StartsWith("data") && data.EndsWith("::done"))
                 {
+                    input._debugLog("<color=#00ff00>Touch Panel calibration received.</color>");
                     string[] toks = data.Split(new string[] { "::" }, System.StringSplitOptions.None);
                     Vector2[,,] verts = null;
                     if (utils.bin2Vert(toks[1], out verts))
@@ -259,11 +261,12 @@ namespace hypercube
 #if HYPERCUBE_DEV                    
                         else if (cm.calibratorBasic) cm.calibratorBasic.pcbText.color = Color.green;  //let the dev know the pcb has viable data, even though we didn't use it.
 #endif
+
                     }
                     else if (data != "data1::::0::done" && data.StartsWith("data1::") )
-                        Debug.LogWarning("Hypercube: Bad 'perfect' vertex data found on Touch Panel PCB");
+                        input._debugLog("Hypercube: Bad 'perfect' vertex data found on Touch Panel PCB");
                     else if (data != "data2::::0::done" && data.StartsWith("data2::"))
-                        Debug.LogWarning("Hypercube: Bad 'calibrated' vertex data found on Touch Panel PCB");   
+                        input._debugLog("Hypercube: Bad 'calibrated' vertex data found on Touch Panel PCB");   
                         
                     forceStringRead = false;//we have what we want, now we only need to handle our normal touch data from here
                     return;
@@ -321,13 +324,14 @@ namespace hypercube
                         cm.calibratorBasic.fwVersionNumber.text = "Firmware\nv" + touchPanelFirmwareVersion.ToString();
                         cm.calibratorBasic.pcbText.color = Color.yellow;  //let the dev know that we have found the pcb.
                     }
+
+                    input._debugLog("<color=#00ff00>Touch Panel PCB identified.</color>");
 #endif
-                    
+
                     portSearches[i] = null; //stop checking this port for relevance.                   
 
-                    //if (debug)
                     Debug.Log("Hypercube: Successfully connected to Volume Touch Panel running firmware v" + touchPanelFirmwareVersion);
-
+                    
                     //TEMP:this version of the tools only knows how to use touchpanel serial port. we are done.
                     //if we ever need to find other ports, this should be removed so it can continue searching.
                     endPortSearch(); 
