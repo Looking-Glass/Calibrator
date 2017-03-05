@@ -216,9 +216,9 @@ namespace hypercube
             }
             catch 
             {
-#if HYPERCUBE_DEV
-                Debug.LogWarning("Exception caught in bin2Vert conversion!");
-#endif
+
+                hypercube.input._debugLog("<color=orange>Exception caught in bin2Vert conversion!</color>");
+
                 return false;
             }
 

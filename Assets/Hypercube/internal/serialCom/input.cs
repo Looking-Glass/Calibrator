@@ -218,7 +218,7 @@ namespace hypercube
 
             string data = touchPanel.serial.ReadSerialMessage();
 
-            //if (data == null || data == "") //backup.. in case message was missed?
+            //if (data == null || data == "") //backup.. in case message was missed? This is def needed on osx
             //{
             //    repingForDataTime -= Time.deltaTime;
             //    if (repingForDataTime <= 0f)
@@ -230,6 +230,10 @@ namespace hypercube
 
             while (data != null && data != "")
             {
+                data = data.Trim();
+                if (data == null || data == "")
+                    break;
+                
                 hypercube.input._debugLog("IN: " + data);
 
                 if (data.StartsWith("data0::") && data.EndsWith("::done"))
@@ -304,6 +308,7 @@ namespace hypercube
                 serialPortType t = portSearches[i].update(deltaTime);
                 if (t == serialPortType.SERIAL_UNKNOWN) //a timeout or some other problem.  This is likely not a port related to us.
                 {
+                    //input._debugLog("<color=orange>Failed to connect to "+ portSearches[i].getSerialInput().portName +" </color>");
                     GameObject.Destroy(portSearches[i].getSerialInput());
                     badSerialPorts.Add(portSearches[i].getSerialInput().portName);
                     portSearches[i] = null;
