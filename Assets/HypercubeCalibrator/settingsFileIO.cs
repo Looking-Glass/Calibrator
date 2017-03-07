@@ -10,10 +10,11 @@ namespace hypercube
 
         public castMesh canvas;
         public vertexCalibrator vc;
+        public basicSettingsAdjustor basic;
 
         void Update()
         {
-            if (Time.timeSinceLevelLoad < 5f) //allow the pcb plenty of time to load before allowing saves.
+            if (Time.timeSinceLevelLoad < 5f || basic.isTextInFocus()) //allow the pcb plenty of time to load before allowing saves.
                 return;
 
             if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))

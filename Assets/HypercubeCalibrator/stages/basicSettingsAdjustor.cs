@@ -40,6 +40,13 @@ namespace hypercube
             GameObject.FindObjectOfType<hypercubeCamera>().render();
         }
 
+        public bool isTextInFocus()
+        {
+            if (modelName.isFocused || serialNumber.isFocused)
+                return true;
+            return false;
+        }
+
         public void reloadDataFile() //if we get delayed info from pcb
         {
             if (!canvas)

@@ -213,6 +213,7 @@ using System.Collections.Generic;
             else
                 preview.setOccludedMode(false);
         }
+        render();
     }
 
     public void updateOverlap()
@@ -253,6 +254,9 @@ using System.Collections.Generic;
         if (softSliceMethod == renderMode.OCCLUDING) //this section is only relevant to occluding render style which renders the slices as a post process
         {                
             renderCam.targetTexture = occlusionRTT;
+
+            if (nearValues == null)
+                return;
 
             //x: near clip, y: far clip, z: overlap, w: depth curve
             renderCam.nearClipPlane = nearValues[0];

@@ -253,9 +253,11 @@ namespace hypercube
 
             bool foundCalibrationFile = false;
            
-            if (hypercube.utils.getConfigPathToFile(usbConfigPath + "/" + basicSettingsFileName, out d.fileName) && d.load()) // (ie   G:/volumeConfigurationData/prefs.txt)
+            if (hypercube.utils.getConfigPathToFile(usbConfigPath + "/" + basicSettingsFileName, out d.fileName)) // (ie   G:/volumeConfigurationData/prefs.txt)
             {
                 hasUSBBasic = true;
+                d.load(); //note this could return false, since it it is allowed to be blank here.
+
 #if HYPERCUBE_DEV
                 if (calibratorBasic) calibratorBasic.usbText.color = Color.yellow;
 #endif
@@ -666,18 +668,38 @@ namespace hypercube
             }
 
             //uvs
+            float u = 0f;
+            float v = 0f;
             if (_drawOccludedMode)
             {
                 float sliceMod = 1f / (float)getSliceCount();
 
                 float UVW = 1f / (float)(xTesselation -1); //-1 makes sure the UV gets to the end
-                float UVH = sliceMod * 1f / (float)(yTesselation -1 );
+                float UVH =  sliceMod * 1f / (float)(yTesselation -1);
+
                 float heightOffset = sliceMod * slice;
+
                 for (var y = 0; y < yTesselation; y++)
                 {
                     for (var x = 0; x < xTesselation; x++)
                     {
-                        Vector2 targetUV = new Vector2(x * UVW, heightOffset + (y * UVH));  //0-1 UV target
+                        //0-1 UV target
+                        u = x * UVW;
+
+
+
+                        if ((!flipZ && !flipY) || flipY || (flipZ && flipY)) //remember we are flipping a single screen here, so flipping z also flips y, so we can compensate for that here.
+                            v = y * UVH;
+                        else
+                            v = (yTesselation - y) * UVH;
+
+                        if (flipX)
+                            u = 1 - u;
+                        
+                        v += heightOffset;
+                        if (flipZ)
+                            v = 1 - v;
+                        Vector2 targetUV = new Vector2(u, v);  
 
                         uvs.Add(targetUV);
 
@@ -693,7 +715,14 @@ namespace hypercube
                 {
                     for (var x = 0; x < xTesselation; x++)
                     {
-                        Vector2 targetUV = new Vector2(x * UVW, y * UVH);  //0-1 UV target
+                        //0-1 UV target
+                        u = x * UVW;
+                        if (flipX)
+                            u = 1 - u;
+                        v = y * UVH;
+                        if (flipY)
+                            v = 1 - v;
+                        Vector2 targetUV = new Vector2(u, v);  
 
                         uvs.Add(targetUV);
 
