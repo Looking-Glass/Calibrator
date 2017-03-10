@@ -86,7 +86,8 @@ public class hypercubeCamera : MonoBehaviour
     [HideInInspector]
     public RenderTexture occlusionRTT;
     public hypercube.castMesh castMeshPrefab;
-    public hypercube.castMesh localCastMesh = null;
+    public slicePostProcess slicePost;
+    hypercube.castMesh localCastMesh = null;
 
     hypercube.hypercubePreview preview = null;
    
@@ -279,6 +280,17 @@ public class hypercubeCamera : MonoBehaviour
 
             for (int i = 0; i < slices; i++)
             {
+                //slice modifier
+                hypercube.sliceModifier m = hypercube.sliceModifier.getSliceMod(i, slices, sliceMods);
+                if (m != null)
+                {
+                    slicePost.blend = m.blend;
+                    slicePost.tex = m.tex;
+                //    slicePost.enabled = true;
+                }
+                else
+                    slicePost.blend = slicePostProcess.blending.NONE;
+
                 renderCam.fieldOfView = baseViewAngle + (i * forcedPerspective); //allow forced perspective or perspective correction
 
                 renderCam.nearClipPlane = nearValues[i];
@@ -288,6 +300,7 @@ public class hypercubeCamera : MonoBehaviour
             }
 
             renderCam.fieldOfView = baseViewAngle;
+            
         }
 
         if (overlap > 0f && softSliceMethod != renderMode.HARD)
@@ -295,6 +308,7 @@ public class hypercubeCamera : MonoBehaviour
             if (softSliceMethod == renderMode.PER_MATERIAL)
                 Shader.DisableKeyword("SOFT_SLICING");  //toggling this on/off allows the preview in the editor to continue to appear normal.            
         }
+        
         renderCam.gameObject.SetActive(false);          
     }
 

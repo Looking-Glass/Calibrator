@@ -1,10 +1,14 @@
-﻿Shader "Hidden/s_over" {
-	Properties {
+﻿Shader "Hidden/s_over" 
+{
+	Properties 
+	{
 		_MainTex ("Base (RGB)", 2D) = "white" {}
 		_blend ("toBlend", 2D) = "white" {}
 	}
-	SubShader {
-		Pass {
+	SubShader 
+	{
+		Pass 
+		{
 			CGPROGRAM
 			#pragma vertex vert_img
 			#pragma fragment frag

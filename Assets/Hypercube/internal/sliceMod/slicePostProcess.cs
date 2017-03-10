@@ -17,14 +17,26 @@ public class slicePostProcess : MonoBehaviour
     public blending blend;
     public Texture tex;
 
-    public Material alphaBlend;
-    public Material adding;
-    public Material multiplying;
+    Material over;
+    Material under;
+    Material adding;
+    Material multiplying;
 
-    // Postprocess the image
+    int texID = -1;
+
+    private void Awake()
+    {
+        texID = Shader.PropertyToID("_blend");
+        over = new Material(Shader.Find("Hidden/s_over"));
+        under = new Material(Shader.Find("Hidden/s_under"));
+        adding = new Material(Shader.Find("Hidden/s_adding"));
+        multiplying = new Material(Shader.Find("Hidden/s_multiplying"));      
+    }
+
+    //postprocess the image
     void OnRenderImage (RenderTexture source, RenderTexture destination)
     {   
-        if (blend == blending.NONE)
+        if (blend == blending.NONE || tex == null)
         {
             Graphics.Blit (source, destination);
             return;
@@ -32,18 +44,22 @@ public class slicePostProcess : MonoBehaviour
 
         if (blend == blending.UNDER)
         {
-            Graphics.Blit(source, destination, alphaBlend);
+            under.SetTexture(texID, tex);
+            Graphics.Blit(source, destination, under);
         }
         else if (blend == blending.OVER)
         {
-            Graphics.Blit(source, destination, alphaBlend);
+            over.SetTexture(texID, tex);
+            Graphics.Blit(source, destination, over);
         }
         else if (blend == blending.ADD)
         {
+            adding.SetTexture(texID, tex);
             Graphics.Blit(source, destination, adding);
         }
         else if (blend == blending.MULTIPLY)
         {
+            multiplying.SetTexture(texID, tex);
             Graphics.Blit(source, destination, multiplying);
         }
 

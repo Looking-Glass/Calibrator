@@ -24,7 +24,7 @@ namespace hypercube
 			cam.softSliceMethod = hypercubeCamera.renderMode.POST_PROCESS;
 			cam.overlap = 1f;
 
-            dataFileDict d = cam.localCastMesh.gameObject.GetComponent<dataFileDict>();
+            dataFileDict d = castMesh.canvas.GetComponent<dataFileDict>();
 
             resXInput.text = d.getValue("touchScreenResX", "800");
             resYInput.text = d.getValue("touchScreenResY", "480");
@@ -49,10 +49,10 @@ namespace hypercube
             cam.softSliceMethod = hypercubeCamera.renderMode.HARD;
             cam.overlap = 0f;
 
-			if (!cam.localCastMesh)
+			if (!castMesh.canvas)
 				return;
 			
-			dataFileDict d = cam.localCastMesh.gameObject.GetComponent<dataFileDict> ();
+			dataFileDict d = castMesh.canvas.GetComponent<dataFileDict> ();
 
 			d.setValue ("touchScreenResX", resXInput.text);
 			d.setValue ("touchScreenResY", resYInput.text);
@@ -78,8 +78,8 @@ namespace hypercube
 
 			if (x <= 0f || y <= 0f || z <= 0f)
 				return;
-			
-			cam.localCastMesh.setProjectionAspectRatios(x,y,z);
+
+            castMesh.canvas.setProjectionAspectRatios(x,y,z);
 			#endif
 		}
     }

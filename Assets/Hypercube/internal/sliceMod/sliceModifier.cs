@@ -16,6 +16,36 @@ namespace hypercube
         [Tooltip("The modification. Put the texture that you want to blend with the desired slice. It can be a renderTexture.")]
         public Texture tex;
 
+        //fast static lookup so that any slice mods can be found asap when iterating through them in hypercubeCamera.render()
+        //static List<sliceModifier> sliceLookup = null;
+        //public static sliceModifier getSliceMod(int sliceNum, int totalSlices)
+        //{
+        //    if (sliceLookup == null)
+        //        sliceLookup = new List<sliceModifier>();
+
+        //    if (hypercubeCamera.mainCam) //try to fill out the array.
+        //    {
+        //        foreach(sliceModifier m in hypercubeCamera.mainCam.sliceMods)
+        //        {
+        //            m.updateSlice(totalSlices);
+        //        }
+        //    }
+
+        //    if (sliceNum >= sliceLookup.Count)
+        //        return null;
+        //    return sliceLookup[sliceNum];
+        //}
+
+        public static sliceModifier getSliceMod(int sliceNum, int sliceCount, sliceModifier[] mods) //TODO this iterates every slice on every frame, check if optimization is in order.
+        {
+            foreach (sliceModifier m in mods)
+            {
+                if (m.getSlice(sliceCount) == sliceNum)
+                    return m;
+            }
+            return null;
+        }
+
         int slice = -1;
         public int updateSlice()
         {
@@ -33,18 +63,19 @@ namespace hypercube
             else if (depth == 1f)
                 slice = totalSlices - 1;
             else
-                slice = Mathf.RoundToInt(Mathf.Lerp(0,totalSlices - 1, depth));
+                slice = Mathf.RoundToInt(Mathf.Lerp(0, totalSlices - 1, depth));
 
             _lastDepth = depth;
+
             return slice;
         }
 
-        int getSlice()
+        public int getSlice(int totalSlices)
         {
             if (depth == _lastDepth)
                 return slice;
 
-            return updateSlice();
+            return updateSlice(totalSlices);
         }
     }
 }

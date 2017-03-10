@@ -162,7 +162,7 @@ namespace hypercube
         void set()
         {
             //save the settings...
-            dataFileDict d = cam.localCastMesh.gameObject.GetComponent<dataFileDict>();
+            dataFileDict d = castMesh.canvas.GetComponent<dataFileDict>();
 
             //gather normalized limits
             float resX = d.getValueAsFloat("touchScreenResX_0", 800f);
