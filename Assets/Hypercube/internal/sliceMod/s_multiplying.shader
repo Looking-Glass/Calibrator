@@ -1,4 +1,4 @@
-﻿Shader "Hidden/s_adding"
+﻿Shader "Hidden/s_multiplying"
 {
 	Properties
 	{

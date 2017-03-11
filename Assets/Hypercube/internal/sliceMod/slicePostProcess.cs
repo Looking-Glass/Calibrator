@@ -11,7 +11,8 @@ public class slicePostProcess : MonoBehaviour
         OVER,
         UNDER,
         ADD,
-        MULTIPLY
+        MULTIPLY,
+        REPLACE
     }
 
     public blending blend;
@@ -61,6 +62,10 @@ public class slicePostProcess : MonoBehaviour
         {
             multiplying.SetTexture(texID, tex);
             Graphics.Blit(source, destination, multiplying);
+        }
+        else if (blend == blending.REPLACE)
+        {
+            Graphics.Blit(tex, destination);
         }
 
         //add other blending type here if needed...

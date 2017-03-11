@@ -18,13 +18,12 @@
 			uniform sampler2D _MainTex;
 			uniform sampler2D _blend;
 
-			float4 frag(v2f_img i) : COLOR 
+			float3 frag(v2f_img i) : COLOR 
 			{
 				float4 c = tex2D(_MainTex, i.uv);
 				float4 b = tex2D(_blend, i.uv);
 
-				float4 o = (c * b.a) + (b * (1.0 - b.a));
-
+				float3 o = (b.rgb * b.a) + (c.rgb * (1.0 - b.a));
 				return o;
 			}
 			ENDCG

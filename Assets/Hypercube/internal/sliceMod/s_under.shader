@@ -23,8 +23,8 @@
 				float4 c = tex2D(_MainTex, i.uv);
 				float4 b = tex2D(_blend, i.uv);
 
-				float4 o = (b * c.a) + (c * (1.0 - c.a));
-
+				float4 o = (c * c.a) + (b * (1.0 - c.a));
+				o *= c.a + b.a;
 				return o;
 			}
 			ENDCG

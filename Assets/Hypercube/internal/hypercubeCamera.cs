@@ -67,10 +67,10 @@ public class hypercubeCamera : MonoBehaviour
     public scaleConstraintType scaleConstraint = scaleConstraintType.NONE;
 
 
-    [Tooltip("Use these to modify a particular slice, for example to add GUI, background, or other to a slice.")]
-    public hypercube.sliceModifier[] sliceMods;
+    [Tooltip("Use these to modify a particular slice, for example to add GUI, background, or other change to a slice.")]
+    public hypercube.sliceModifier[] sliceModifiers;
 
-    [Tooltip("If the hypercube_RTT camera is set to perspective, this will modify the FOV of each successive slice to create forced perspective effects.")]
+    [Tooltip("If the hypercube_RTT camera is set to perspective, this will modify the FOV of each successive slice to create forced perspective effects.\n\nNOTE: Slice Modifiers will not work in OCCLUDING render mode.")]
     public float forcedPerspective = 0f; //0 is no forced perspective, other values force a perspective either towards or away from the front of the Volume.
     [Tooltip("Brightness is a final modifier on the output to Volume.\nCalculated value * Brightness = output")]
     public float brightness = 1f; //  a convenience way to set the brightness of the rendered textures. The proper way is to call 'setTone()' on the canvas
@@ -254,8 +254,12 @@ public class hypercubeCamera : MonoBehaviour
                 renderCam.gameObject.SetActive(true); //setting it active/inactive is only needed so that OnRenderImage() will be called on softOverlap.cs for the post process effect. It is normally hidden so that the Unity camera icon won't interfere with viewing what is inside hypercube in the editor.            
         }
 
-        float baseViewAngle = renderCam.fieldOfView;
+        if (nearValues == null || farValues == null)
+        {
+            resetSettings();
+        }
 
+        float baseViewAngle = renderCam.fieldOfView;
         
         if (softSliceMethod == renderMode.OCCLUDING) //this section is only relevant to occluding render style which renders the slices as a post process
         {                
@@ -281,9 +285,10 @@ public class hypercubeCamera : MonoBehaviour
             for (int i = 0; i < slices; i++)
             {
                 //slice modifier
-                hypercube.sliceModifier m = hypercube.sliceModifier.getSliceMod(i, slices, sliceMods);
+                hypercube.sliceModifier m = hypercube.sliceModifier.getSliceMod(i, slices, sliceModifiers);
                 if (m != null)
                 {
+                    renderCam.gameObject.SetActive(true); //has to be active, or post processes wont work.
                     slicePost.blend = m.blend;
                     slicePost.tex = m.tex;
                 //    slicePost.enabled = true;
@@ -327,7 +332,11 @@ public class hypercubeCamera : MonoBehaviour
         renderCam.aspect = transform.lossyScale.x / transform.lossyScale.y;
         renderCam.orthographicSize = .5f * transform.lossyScale.y;
 
-        for (int i = 0; i < sliceTextures.Length && i < sliceTextures.Length; i++)
+        int sliceCount = sliceTextures.Length;
+        if (sliceCount == 0)
+            sliceCount = hypercube.castMesh.defaultSliceCount;
+
+        for (int i = 0;  i < sliceTextures.Length; i++)
         {
             nearValues[i] = (i * sliceDepth) - (sliceDepth * overlap);
             farValues[i] = ((i + 1) * sliceDepth) + (sliceDepth * overlap);
@@ -342,7 +351,7 @@ public class hypercubeCamera : MonoBehaviour
         if (resX == 0 || resY == 0) //probably initializing or something.
             return;
         
-        if (sliceTextures.Length != count || sliceTextures[0].width != resX || sliceTextures[0].height != resY)
+        if (sliceTextures == null || sliceTextures.Length != count || sliceTextures[0] == null || sliceTextures[0].width != resX || sliceTextures[0].height != resY)
         {
             List<RenderTexture> newTextures = new List<RenderTexture>();
             for (int i = 0; i < count; i++)
