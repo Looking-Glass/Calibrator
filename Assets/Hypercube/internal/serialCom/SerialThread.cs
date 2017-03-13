@@ -139,12 +139,17 @@ public class SerialThread
                     while (!IsStopRequested())
                         RunOnce();
                 }
+
+#if !HYPERCUBE_DEV
+                catch 
+                {
+#else
                 catch (Exception ioe)
                 {
                     // A disconnection happened, or there was a problem
                     // reading/writing to the device. Log the detailed message
                     // to the console and notify the listener too.
-#if HYPERCUBE_DEV
+
                     Debug.LogWarning("Exception: " + ioe.Message + "\nStackTrace: " + ioe.StackTrace);
 #endif
                     inputQueue.Enqueue(SerialController.SERIAL_DEVICE_DISCONNECTED);

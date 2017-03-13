@@ -68,7 +68,7 @@ namespace hypercube
             slicesY.text = d.getValueAsInt("slicesY", 10).ToString();
 
             fpga.isOn = d.getValueAsBool("useFPGA", false);
-            saveToPCB.isOn = d.getValueAsBool("saveToTP", true);
+            saveToPCB.isOn = d.getValueAsBool("saveToTP", false); //TODO - this should default to true once saving to PCB is stable
 
             //add the given options defined in vertexCalibrator.articulations
             System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData> options = new System.Collections.Generic.List<UnityEngine.UI.Dropdown.OptionData>();
