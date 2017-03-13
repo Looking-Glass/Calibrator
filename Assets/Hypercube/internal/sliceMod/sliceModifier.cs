@@ -2,6 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// This class is a container for slice 'modifiers'.
+/// Slice modifiers are intended to be used to apply a GUI or other overlay to particular slices.
+/// Be aware that when displaying on different devices its possible that multiple overlays could collide on a slice.
+/// In such cases only one of the overlays will work, so overlays should not be placed too close together unless the application is device specific (for example: the application is only intended to work on 10 slice Volumes).
+/// </summary>
+
 namespace hypercube
 {
     [System.Serializable]
@@ -16,18 +23,72 @@ namespace hypercube
         [Tooltip("The modification. Put the texture that you want to blend with the desired slice. It can be a renderTexture.")]
         public Texture tex;
 
-        public static sliceModifier getSliceMod(int sliceNum, int sliceCount, sliceModifier[] mods) //TODO this iterates every slice on every frame, check if optimization is in order.
+        /// <summary>
+        /// Use this call when dynamically setting depth from code.
+        /// This way, 
+        /// </summary>
+        /// <param name="d">What depth value to set this modifier to. 0 = front, 1 = back</param>
+        public void setDepth(float d)
         {
-            if (sliceCount < 1 || mods == null)
+            d = Mathf.Clamp(d, 0f, 1f);
+
+            if (!hypercubeCamera.mainCam)
+                updateSliceModifiers(null);
+            else
+                updateSliceModifiers(hypercubeCamera.mainCam.sliceModifiers);          
+        }
+
+        //keep track of all modifiers.
+        static sliceModifier[] allModifiers = null;
+        public static sliceModifier getSliceModifier(int sliceNum)
+        {
+            if (allModifiers == null)
                 return null;
+
+            if (sliceNum >= allModifiers.Length)
+                return null;
+
+            return allModifiers[sliceNum];
+        }
+        public static void updateSliceModifiers(sliceModifier[] mods)
+        {
+            if (castMesh.canvas)
+                updateSliceModifiers(castMesh.canvas.getSliceCount(), mods);
+        }
+        public static void updateSliceModifiers(int sliceCount, sliceModifier[] mods)
+        {
+            if (allModifiers == null || allModifiers.Length != sliceCount)
+                allModifiers = new sliceModifier[sliceCount];
+
+            for (int n = 0; n < sliceCount; n++) //double make sure its clear.
+            {
+                allModifiers[n] = null;
+            }
+
+            if (mods == null || mods.Length == 0 || sliceCount < 2)
+                return;
 
             foreach (sliceModifier m in mods)
             {
-                if (m.getSlice(sliceCount) == sliceNum)
-                    return m;
+                int s = m.getSlice(sliceCount);
+                allModifiers[s] = m;
             }
-            return null;
         }
+
+
+
+        //public static sliceModifier getSliceMod(int sliceNum, int sliceCount, sliceModifier[] mods) //TODO this iterates every slice on every frame, check if optimization is in order.
+        //{
+        //    if (sliceCount < 1 || mods == null)
+        //        return null;
+
+        //    foreach (sliceModifier m in mods)
+        //    {
+        //        if (m.getSlice(sliceCount) == sliceNum)
+        //            return m;
+        //    }
+        //    return null;
+        //}
 
         int slice = -1;
         public int updateSlice()

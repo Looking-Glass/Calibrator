@@ -86,7 +86,7 @@ public class hypercubeCamera : MonoBehaviour
     [HideInInspector]
     public RenderTexture occlusionRTT;
     public hypercube.castMesh castMeshPrefab;
-    public slicePostProcess slicePost;
+    public hypercube.slicePostProcess slicePost;
     hypercube.castMesh localCastMesh = null;
 
     hypercube.hypercubePreview preview = null;
@@ -109,7 +109,9 @@ public class hypercubeCamera : MonoBehaviour
     {
         if (!localCastMesh)
         {
-            localCastMesh = GameObject.FindObjectOfType<hypercube.castMesh>();
+            localCastMesh = hypercube.castMesh.canvas;
+            if (!localCastMesh)
+                localCastMesh = GameObject.FindObjectOfType<hypercube.castMesh>();
             if (!localCastMesh)
             {
                 //if no canvas exists. we need to have one or the hypercube is useless.
@@ -117,8 +119,8 @@ public class hypercubeCamera : MonoBehaviour
                 Cursor.visible = true;
                 localCastMesh = UnityEditor.PrefabUtility.InstantiatePrefab(castMeshPrefab) as hypercube.castMesh;  //try to keep the prefab connection, if possible
 #else
-            Cursor.visible = false;
-            localCastMesh = Instantiate(castMeshPrefab); //normal instantiation, lost the prefab connection
+                Cursor.visible = false;
+                localCastMesh = Instantiate(castMeshPrefab); //normal instantiation, lost the prefab connection
 #endif
             }
         }
@@ -199,10 +201,9 @@ public class hypercubeCamera : MonoBehaviour
         if (localCastMesh)
         {
             localCastMesh.setTone(brightness);
-            if (softSliceMethod == renderMode.OCCLUDING)
-                localCastMesh.drawOccludedMode = true; //this calls updateMesh
-            else
-                localCastMesh.drawOccludedMode = false; //this calls updateMesh
+            localCastMesh.updateMesh();
+
+            hypercube.sliceModifier.updateSliceModifiers(localCastMesh.getSliceCount(), sliceModifiers);
         }
 
         Shader.SetGlobalFloat("_hypercubeBrightnessMod", brightness);
@@ -241,6 +242,7 @@ public class hypercubeCamera : MonoBehaviour
         }
         softSlicePostProcess.enabled = false;
     }
+
 
 
     public virtual void render()
@@ -284,17 +286,21 @@ public class hypercubeCamera : MonoBehaviour
 
             for (int i = 0; i < slices; i++)
             {
-                //slice modifier
-                hypercube.sliceModifier m = hypercube.sliceModifier.getSliceMod(i, slices, sliceModifiers);
+                //slice modifiers
+                hypercube.sliceModifier m = hypercube.sliceModifier.getSliceModifier(i);
                 if (m != null)
                 {
                     renderCam.gameObject.SetActive(true); //has to be active, or post processes wont work.
                     slicePost.blend = m.blend;
                     slicePost.tex = m.tex;
-                //    slicePost.enabled = true;
+                    slicePost.enabled = true;
                 }
                 else
-                    slicePost.blend = slicePostProcess.blending.NONE;
+                {
+                    slicePost.enabled = false;
+                    slicePost.blend = hypercube.slicePostProcess.blending.NONE;
+                }
+                    
 
                 renderCam.fieldOfView = baseViewAngle + (i * forcedPerspective); //allow forced perspective or perspective correction
 
