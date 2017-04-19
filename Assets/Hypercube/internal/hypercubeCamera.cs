@@ -28,7 +28,7 @@ using System.Collections.Generic;
 [ExecuteInEditMode]
 public class hypercubeCamera : MonoBehaviour
 {
-     public const float version = 2.13f;
+     public const float version = 2.4f;
 
      //a static pointer to the last activated hypercubeCameraZ
      public static hypercubeCamera mainCam = null;  
@@ -67,10 +67,10 @@ public class hypercubeCamera : MonoBehaviour
     public scaleConstraintType scaleConstraint = scaleConstraintType.NONE;
 
 
-    [Tooltip("Use these to modify a particular slice, for example to add GUI, background, or other change to a slice.")]
-    public hypercube.sliceModifier[] sliceModifiers;
+    [Tooltip("Use this to modify slices, for example each modifier can be used to add GUI, a background, or other change to a slice.\n\nNOTE:Use sliceModifier.updateSliceModifiers() to force them to update.\n\nNOTE: Slice Modifiers will not work in OCCLUDING render mode.")]
+    public List<hypercube.sliceModifier> sliceModifiers;
 
-    [Tooltip("If the hypercube_RTT camera is set to perspective, this will modify the FOV of each successive slice to create forced perspective effects.\n\nNOTE: Slice Modifiers will not work in OCCLUDING render mode.")]
+    [Tooltip("If the hypercube_RTT camera is set to perspective, this will modify the FOV of each successive slice to create forced perspective effects.")]
     public float forcedPerspective = 0f; //0 is no forced perspective, other values force a perspective either towards or away from the front of the Volume.
     [Tooltip("Brightness is a final modifier on the output to Volume.\nCalculated value * Brightness = output")]
     public float brightness = 1f; //  a convenience way to set the brightness of the rendered textures. The proper way is to call 'setTone()' on the canvas
@@ -79,13 +79,17 @@ public class hypercubeCamera : MonoBehaviour
     public bool autoHideMouse = true;
     
 
-    public hypercube.softOverlap softSlicePostProcess;
+    
     public Camera renderCam;
     [HideInInspector]
     public RenderTexture[] sliceTextures;
     [HideInInspector]
     public RenderTexture occlusionRTT;
     public hypercube.castMesh castMeshPrefab;
+
+    [HideInInspector]
+    public hypercube.softOverlap softSlicePostProcess;
+    [HideInInspector]
     public hypercube.slicePostProcess slicePost;
     hypercube.castMesh localCastMesh = null;
 
@@ -103,6 +107,9 @@ public class hypercubeCamera : MonoBehaviour
     void Awake()
     {
         renderCam.depthTextureMode = DepthTextureMode.Depth;
+
+        softSlicePostProcess = renderCam.GetComponent<hypercube.softOverlap>();
+        slicePost = renderCam.GetComponent<hypercube.slicePostProcess>();
     }
 
     void Start()
@@ -159,12 +166,21 @@ public class hypercubeCamera : MonoBehaviour
             if (!localCastMesh && sliceTextures.Length < hypercube.castMesh.defaultSliceCount)
                 populateRTTs(hypercube.castMesh.defaultSliceCount, 512, 512); //the default RTT settings if no canvas found.
         }
-        else if (localCastMesh.getSliceCount() != sliceTextures.Length || 
-            !occlusionRTT || sliceTextures.Length == 0 || 
-            sliceTextures[0].width != hypercube.castMesh.rttResX || sliceTextures[0].height != hypercube.castMesh.rttResY
-        ) //dynamically fill the render textures
+        else
         {
-            populateRTTs(localCastMesh.getSliceCount(), hypercube.castMesh.rttResX, hypercube.castMesh.rttResY);
+            if (hypercube.sliceModifier.areModifiersNull() && sliceModifiers.Count > 0)
+                hypercube.sliceModifier.updateSliceModifiers(localCastMesh.getSliceCount(), sliceModifiers);
+
+            if (localCastMesh.getSliceCount() != sliceTextures.Length ||
+              !occlusionRTT ||
+              sliceTextures.Length == 0 ||
+              sliceTextures[0] == null ||
+              sliceTextures[0].width != hypercube.castMesh.rttResX ||
+              sliceTextures[0].height != hypercube.castMesh.rttResY
+          ) //dynamically fill the render textures
+            {
+                populateRTTs(localCastMesh.getSliceCount(), hypercube.castMesh.rttResX, hypercube.castMesh.rttResY);
+            }
         }
             
 
@@ -214,12 +230,8 @@ public class hypercubeCamera : MonoBehaviour
         if (!preview)
             preview = GameObject.FindObjectOfType<hypercube.hypercubePreview>();
         if (preview)
-        {
-            if (softSliceMethod == renderMode.OCCLUDING)
-                preview.setOccludedMode(true);
-            else
-                preview.setOccludedMode(false);
-        }
+            preview.updateMesh();
+
         render();
     }
 
@@ -247,6 +259,9 @@ public class hypercubeCamera : MonoBehaviour
 
     public virtual void render()
     {
+        int slices = sliceTextures.Length;
+        if (slices == 0)
+            return;
 
         if (overlap > 0f && softSliceMethod != renderMode.HARD)
         {
@@ -270,19 +285,16 @@ public class hypercubeCamera : MonoBehaviour
             if (nearValues == null)
                 return;
 
+
             //x: near clip, y: far clip, z: overlap, w: depth curve
             renderCam.nearClipPlane = nearValues[0];
-            renderCam.farClipPlane = farValues[localCastMesh.getSliceCount() - 1];
+            renderCam.farClipPlane = farValues[slices - 1];
             Shader.SetGlobalVector("_NFOD", new Vector4(renderCam.nearClipPlane, renderCam.farClipPlane, overlap, 1f));               
 
             renderCam.Render();
         }
         else //normal rendering path with multiple slices
         {
-
-            int slices = sliceTextures.Length;
-            if (slices == 0)
-                return;
 
             for (int i = 0; i < slices; i++)
             {

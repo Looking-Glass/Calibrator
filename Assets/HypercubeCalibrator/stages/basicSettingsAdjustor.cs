@@ -5,6 +5,7 @@ namespace hypercube
 {
     public class basicSettingsAdjustor : MonoBehaviour
     {
+        public UnityEngine.UI.Text calibratorVer;
 
         public UnityEngine.UI.InputField modelName;
         public UnityEngine.UI.InputField versionNumber;

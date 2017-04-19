@@ -1,0 +1,57 @@
+HYPERCUBE DEBUG REPORT: Calibrator  -  Wednesday, April 19, 2017 5:37:25 PM
+
+///////////////////////////////////////////////////////////////////// - SOFTWARE:
+Unity version: 5.6.0f3
+Hypercube version: 2.4
+App version: 1.0
+Platform: WindowsEditor
+Running in Editor?: True
+Run Directory: D:\WORKING\DEV\Calibrator
+App asset path: D:/WORKING/DEV/Calibrator/Assets
+Build Date: Wednesday, April 19, 2017 5:37:25 PM
+
+///////////////////////////////////////////////////////////////////// - CPU HARDWARE:
+Windows 10  (10.0.0) 64bit
+Screen Resolution: 1920 x 1080
+Intel  -  Intel(R) HD Graphics 3000 - version: Direct3D 11.0 [level 10.1]
+Graphics memory: 1999 Mbytes
+Supports compute shaders: False
+Multi Threaded GPU: True
+Reversed Z Buffer: True
+
+CPU Processor: Intel(R) Core(TM) i7-2760QM CPU @ 2.40GHz
+CPU Frequency: 2395
+CPU Cores: 8
+RAM: 16278 MBytes
+
+Battery Status: Full
+Battery Charge: 100%
+
+///////////////////////////////////////////////////////////////////// - LKG HARDWARE:
+Touch Panel Firmware version: 4.5
+Calibrated with calibrator version: v2.22
+
+////////  CALIBRATION SETTINGS:
+volumeModelName=headOnly
+volumeHardwareVersion=-1
+serialNum=]
+volumeResX=1919
+volumeResY=1079
+sliceResX=1024
+sliceResY=150
+slicesX=1
+slicesY=10
+articulationX=17
+articulationY=9
+useFPGA=False
+touchScreenResX=800
+touchScreenResY=480
+projectionCentimeterWidth=20
+projectionCentimeterHeight=12
+projectionCentimeterDepth=20
+touchScreenMapTop_0=0.8989583
+touchScreenMapBottom_0=0.159375
+touchScreenMapLeft_0=0.056875
+touchScreenMapRight_0=0.96125
+saveToTP=False
+calibratorVersion=v2.22

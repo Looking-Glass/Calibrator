@@ -1291,7 +1291,8 @@ namespace hypercube
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
-
+            if (d)
+                d.setValue("calibratorVersion", basicSettings.calibratorVer.text);
 
             //touch panel
             if (!basicSettings.saveToPCB.isOn)
@@ -1301,7 +1302,7 @@ namespace hypercube
             else
             {
                 input.touchPanel.serial.readDataAsString = true;
-
+           
                 string basicSettingsStr = d.getDataAsString();
                 yield return input._get()._writeSettings(basicSettingsStr);
                 if (input.pcbIoState == input.pcbState.SUCCESS)

@@ -11,10 +11,11 @@ using UnityEngine;
 
 namespace hypercube
 {
+    [ExecuteInEditMode]
     [System.Serializable]
     public class sliceModifier
     {
-        [Tooltip("What slice should this slice modifier apply to.\nDifferent devices have different amounts of slices, so use this to let the tools choose the appropriate slice between front (0) and back(1).")]
+        [Tooltip("The slice that this slice modifier should apply to.\nDifferent models of Volume have different amounts of slices. This is used to select the appropriate slice between front (0) and back (1).\n\nNOTE: to change this value from code in realtime, use setDepth(d) on the sliceModifier.")]
         [Range(0f, 1f)]
         public float depth; //0-1 front to back
         private float _lastDepth = -1; //used to detect change in value, while still allowing depth editability in inspector (don't use get/set)
@@ -25,21 +26,19 @@ namespace hypercube
 
         /// <summary>
         /// Use this call when dynamically setting depth from code.
-        /// This way, 
+        /// This way, it will get updated properly.
         /// </summary>
         /// <param name="d">What depth value to set this modifier to. 0 = front, 1 = back</param>
         public void setDepth(float d)
         {
-            d = Mathf.Clamp(d, 0f, 1f);
-
-            if (!hypercubeCamera.mainCam)
-                updateSliceModifiers(null);
-            else
-                updateSliceModifiers(hypercubeCamera.mainCam.sliceModifiers);          
+            depth = Mathf.Clamp(d, 0f, 1f);
+            updateSliceModifiers();
         }
 
         //keep track of all modifiers.
         static sliceModifier[] allModifiers = null;
+        static public bool areModifiersNull() { if (allModifiers == null) return true; if (allModifiers[0] == null) return true; return false; }
+
         public static sliceModifier getSliceModifier(int sliceNum)
         {
             if (allModifiers == null)
@@ -50,23 +49,30 @@ namespace hypercube
 
             return allModifiers[sliceNum];
         }
-        public static void updateSliceModifiers(sliceModifier[] mods)
+
+        public static void updateSliceModifiers()
+        {
+            if (hypercubeCamera.mainCam)
+                updateSliceModifiers(hypercubeCamera.mainCam.sliceModifiers);
+            else
+                allModifiers = null;
+        }
+        public static void updateSliceModifiers(List<sliceModifier> mods)
         {
             if (castMesh.canvas)
                 updateSliceModifiers(castMesh.canvas.getSliceCount(), mods);
+            else
+                allModifiers = null;
         }
-        public static void updateSliceModifiers(int sliceCount, sliceModifier[] mods)
+        public static void updateSliceModifiers(int sliceCount, List<sliceModifier> mods)
         {
-            if (allModifiers == null || allModifiers.Length != sliceCount)
-                allModifiers = new sliceModifier[sliceCount];
-
-            for (int n = 0; n < sliceCount; n++) //double make sure its clear.
+            if (sliceCount < 1 || mods == null) //probably still starting up, this is bogus.
             {
-                allModifiers[n] = null;
+                allModifiers = null;
+                return;
             }
 
-            if (mods == null || mods.Length == 0 || sliceCount < 2)
-                return;
+            allModifiers = new sliceModifier[sliceCount];
 
             foreach (sliceModifier m in mods)
             {
@@ -74,21 +80,6 @@ namespace hypercube
                 allModifiers[s] = m;
             }
         }
-
-
-
-        //public static sliceModifier getSliceMod(int sliceNum, int sliceCount, sliceModifier[] mods) //TODO this iterates every slice on every frame, check if optimization is in order.
-        //{
-        //    if (sliceCount < 1 || mods == null)
-        //        return null;
-
-        //    foreach (sliceModifier m in mods)
-        //    {
-        //        if (m.getSlice(sliceCount) == sliceNum)
-        //            return m;
-        //    }
-        //    return null;
-        //}
 
         int slice = -1;
         public int updateSlice()
