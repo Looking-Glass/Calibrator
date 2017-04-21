@@ -144,15 +144,24 @@ namespace hypercube
 
         GameObject[] dotMeshes;
 
-        Vector3 lastMousePos; //used to calculate mouse controls
+        //Vector3 lastMousePos; //used to calculate mouse controls
 
         void Awake()
         {
             undoMgr = new vertexCalibratorUndoManager();
         }
 
+        public override void OnDisable()
+        {
+                        Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            base.OnDisable();
+        }
+
         public override void OnEnable()
         {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
 
             dataFileDict d = canvas.GetComponent<dataFileDict>();
 
@@ -576,16 +585,6 @@ namespace hypercube
                 updateTextures();
             }
 
-            if (Input.GetKey(KeyCode.Mouse1)) //resize dots
-            {
-                Vector3 diff = lastMousePos - Input.mousePosition;
-                if (diff != Vector3.zero)
-                {
-                    dotSize += (-diff.x - diff.y ) * Time.deltaTime * scaleSensitivity; 
-                    updateTextures();
-                }
-            }
-
 
             //undo
             if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) ||
@@ -611,13 +610,24 @@ namespace hypercube
                 return;
             }
 
+            //get mouse input
+            Vector3 diff = Vector3.zero;
+            diff.x = Input.GetAxis("Mouse X");
+            diff.y = Input.GetAxis("Mouse Y");
 
+            if (Input.GetKey(KeyCode.Mouse1)) //resize dots
+            {
+                if (diff != Vector3.zero)
+                {
+                    dotSize += (-diff.x - diff.y ) * Time.deltaTime * scaleSensitivity; 
+                    updateTextures();
+                }
+            }
 
             //move a vert with mouse
             if (Input.GetKey(KeyCode.Mouse0))
 			{
-				Vector3 diff = Input.mousePosition - lastMousePos;
-				if (diff != Vector3.zero)
+                if (diff != Vector3.zero)
 				{
 					diff *= Time.deltaTime * sensitivity;
 
@@ -720,29 +730,6 @@ namespace hypercube
                     {                       
                         moveVert(selectionS, diff.x, diff.y);
                     }
-                /*    else if (cubeMode)
-                    {
-                        //cube mode is really a variant of the lowest mode. Here we lerp movement along the z edges
-                        int slices = slicesX * slicesY;
-
-                        if (selectionS == 0)
-                        {
-                            for (int s = 0; s < slices; s++)
-                            {
-                                float lerp = 1f - ((float)s / (float)slices);
-                                moveVert(s, diff.x * lerp, diff.y * lerp);
-                            }
-                        }
-                        else //we have a back slice selected, so slice 0 gets no influence here
-                        {
-                            for (int s = 0; s < slices; s++)
-                            {
-                                float lerp = (float)s / (float)slices;
-                                moveVert(s, diff.x * lerp, diff.y * lerp);
-                            }
-                        }
-                    }
-                    */
                     else
                         moveDeepVert(selectionS, diff.x, diff.y); //move this vert softly, on all slices (the default)
 
@@ -779,15 +766,15 @@ namespace hypercube
             else // no modifier
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1))
-                    sensitivity = .00002f;
+                    sensitivity = .02f;
                 else if (Input.GetKeyDown(KeyCode.Alpha2))
-                    sensitivity = .0002f;
+                    sensitivity = .2f;
                 else if (Input.GetKeyDown(KeyCode.Alpha3))
-                    sensitivity = .007f;
+                    sensitivity = .7f;
                 else if (Input.GetKeyDown(KeyCode.Alpha4))
-                    sensitivity = .015f;
+                    sensitivity = 1f;
                 else if (Input.GetKeyDown(KeyCode.Alpha5))
-                    sensitivity = .15f;
+                    sensitivity = 1.5f;
 
                 if (Input.GetKeyDown(KeyCode.Alpha8))
                 { flipVertsX(); undoMgr.recordUndo(vertices);}
@@ -796,19 +783,23 @@ namespace hypercube
                 if (Input.GetKeyDown(KeyCode.Alpha0))
                 { flipVertsZ(); undoMgr.recordUndo(vertices);}
             }
-
-
-                lastMousePos = Input.mousePosition;
         }
 
         //lerps the appropriate unselected vertices and also it's equivalent among sister slices
-        void moveDeepVert(int slice, float xAmount, float yAmount)
+        bool moveDeepVert(int slice, float xAmount, float yAmount)
         {
-            moveDeepVert(slice, displayLevelX, selectionX, displayLevelY, selectionY, xAmount, yAmount);
+            return moveDeepVert(slice, displayLevelX, selectionX, displayLevelY, selectionY, xAmount, yAmount);
         }
-        void moveDeepVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
+        bool moveDeepVert(int slice, int dispX, int selX, int dispY, int selY, float xAmount, float yAmount)
         {
-            
+
+            //this code will be used to tell us if we flipped our slice via vert movement.
+            //this is almost certainly not wanted. We will keep the user from screwing himself over.
+            //this is also not failsafe, but it will prevent weird behavior in the vertex calibrator
+            Vector2[,,] backup = vertexCalibratorUndoManager.deepCopyVertices(vertices);
+            bool xFlip = getXFlip(slice);
+            bool yFlip = getYFlip(slice);
+
             int sliceCount = slicesX * slicesY;
             for (int s = 0; s < sliceCount; s++)
             {
@@ -825,6 +816,13 @@ namespace hypercube
                     moveVert(s, dispX, selX, dispY, selY, xAmount * lerp, yAmount * lerp);
                 }
             }
+
+            if (xFlip != getXFlip(slice) || yFlip != getYFlip(slice))
+            {
+                vertices = vertexCalibratorUndoManager.deepCopyVertices(backup); //UNDO WHAT THE USER JUST DID!!!  THEY SOMEHOW FLIPPED THEIR SLICE!
+                return false;
+            }
+            return true;
         }
 
 
@@ -1156,18 +1154,6 @@ namespace hypercube
             renderCam.gameObject.SetActive(false);
         }
 
-/*        void blackOutTexture(int slice)
-        {
-            dotParent.SetActive(false);
-            sliceNumText.gameObject.SetActive(false);
-            background.SetActive(false);
-
-            renderCam.targetTexture = sliceTextures[slice];
-            renderCam.rect = new Rect(0f, 0f, 1f, 1f);
-            renderCam.Render();
-            renderCam.targetTexture = null;
-        }
-*/
         void renderSlice(int slice, int xDiv, int yDiv)
         {
             //first make sure we have the required number of dots.
